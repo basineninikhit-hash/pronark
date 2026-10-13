@@ -1,6 +1,6 @@
 # Pronark — implementation status
 
-The approved product requirements are in [PRD.md](PRD.md). This folder contains the React/Vite app, PostgreSQL migrations, local tests, and scheduled-worker code. The existing `broken-dream-9579` Cloudflare Worker was last deployed on October 7, 2026 (version `12d62e89-e3ce-424b-bbfe-5e0caf62740b`). The purchase-popup and activity-KPI changes are live. A fresh signed-in Home check and live write-path smoke test are still pending.
+The approved product requirements are in [PRD.md](PRD.md). This folder contains the React/Vite app, PostgreSQL migrations, local tests, and scheduled-worker code. The app is hosted on GitHub Pages at https://basineninikhit-hash.github.io/pronark/ and deployed by `.github/workflows/deploy-pages.yml` on every push to `main`; user data lives in Supabase. The purchase-popup and activity-KPI changes are live. A fresh signed-in Home check and live write-path smoke test are still pending.
 
 ## Local run
 
@@ -20,7 +20,7 @@ The owner ran [202610070014_activity_kpis.sql](supabase/migrations/202610070014_
 
 ## Rewards update release gate
 
-The local build includes additive category-and-item savings targets, item-level assignments, purchase accounting that leaves unused savings in the category, negative in-app wallet warnings, and bonus-progress pauses while a wallet is non-positive. `npm test` and `npm run build` pass. The built static files are live on the existing Cloudflare Worker, using `wrangler.jsonc`; no local secrets were uploaded. Before broader release, refresh the signed-in app and exercise a small category target, item assignment, and purchase/reversal on disposable test data. Do not upload `.env.local`, `.env.push.local`, service-account JSON, or the repository root.
+The local build includes additive category-and-item savings targets, item-level assignments, purchase accounting that leaves unused savings in the category, negative in-app wallet warnings, and bonus-progress pauses while a wallet is non-positive. `npm test` and `npm run build` pass. The built static files are deployed to GitHub Pages by the Actions workflow, which reads the public `VITE_*` values from repository secrets; no local secrets are uploaded. Before broader release, refresh the signed-in app and exercise a small category target, item assignment, and purchase/reversal on disposable test data. Do not upload `.env.local`, `.env.push.local`, service-account JSON, or the repository root.
 
 For the early Web Push capability check, run `node scripts/generate-vapid.mjs` once in a development checkout. It puts the public subscription key in ignored `.env.local` and the private key in ignored `.env.push.local`. Restart Vite after adding the key. The Settings button can then request permission and create a browser subscription; it does not store the subscription in Supabase or send a notification. A real iPhone check requires an HTTPS test URL installed to the Home Screen. Keep the private key out of browser variables and source control.
 
