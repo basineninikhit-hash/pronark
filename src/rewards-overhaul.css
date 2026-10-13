@@ -1,0 +1,15 @@
+.reward-breakdown{font-size:.86rem;color:#4b6759;margin:-.4rem 0 1.1rem}
+.goal-item-copy .goal-progress{margin-top:.4rem;max-width:210px;height:7px}
+.goal-item-copy .goal-progress>span{font-size:0}
+.goal-item-actions{align-self:center}
+.goals-page .banner{line-height:1.5}
+.reward-next{margin:1rem 0;padding:1.15rem 1.4rem;background:linear-gradient(115deg,#e8f4eb,#fffdf8)}
+.reward-next span{font-size:.68rem;letter-spacing:.15em;font-weight:800;color:#397253}
+.reward-next strong{display:block;font-size:1.25rem;margin:.35rem 0}
+.reward-next p{margin:0}
+.reward-badges{display:flex;gap:.5rem;flex-wrap:wrap;margin:0 0 1.2rem}
+.reward-badges span{border:1px solid #cfdfd2;border-radius:999px;padding:.4rem .75rem;font-size:.78rem;color:#65766b;background:#f5f8f3}
+.reward-badges span.earned{background:#e0f1e5;color:#15543f;border-color:#8dc69b;font-weight:750}
+.reward-purchases{border-top:1px solid #e1e9e3;margin-top:1.3rem;padding-top:1rem}
+.reward-purchases h3{margin:0 0 .5rem;font-size:1rem}
+.reward-purchases p{margin:.25rem 0;color:#3e6651}

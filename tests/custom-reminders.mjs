@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {customWindow,inQuietHours,ruleIsDue} from '../supabase/functions/hnf-worker/custom-reminders.mjs';
+assert.deepEqual(customWindow(new Date('2026-07-01T14:00:00Z')),{date:'2026-07-01',time:'10:00'});
+assert.deepEqual(customWindow(new Date('2026-01-01T15:00:00Z')),{date:'2026-01-01',time:'10:00'});
+assert.equal(inQuietHours('22:30','21:00','07:00'),true);
+assert.equal(inQuietHours('06:30','21:00','07:00'),true);
+assert.equal(inQuietHours('10:00','21:00','07:00'),false);
+const rule={enabled:true,task_id:'one'},task={id:'one',start_date:'2026-07-01',archive_date:null},settings=[{task_id:'one',month:'2026-07-01',weekdays:[1,2,3,4,5]}];
+assert.equal(ruleIsDue({rule,task,settings,completion:null,date:'2026-07-01'}),true);
+assert.equal(ruleIsDue({rule,task,settings,completion:{completed:true},date:'2026-07-01'}),false);
+assert.equal(ruleIsDue({rule,task,settings,completion:null,date:'2026-07-04'}),false);
+console.log('PASS custom reminder timezone, quiet hours, rest day, and completion suppression');

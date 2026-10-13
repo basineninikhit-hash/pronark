@@ -1,0 +1,5 @@
+.brand{height:160px;padding:0;overflow:hidden;display:flex;justify-content:center;flex:none}
+.brand img{display:block;width:290px;height:218px;max-width:none;flex:none;object-fit:contain;margin-top:-26px}
+.w-brand img{display:block;width:220px;height:128px;object-fit:contain}
+.setup .mark img{display:block;width:230px;height:150px;object-fit:contain}
+@media(max-width:700px){.w-brand img{width:155px;height:93px}}

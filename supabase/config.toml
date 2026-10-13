@@ -1,0 +1,4 @@
+[functions.hnf-worker]
+# Cron uses X-HNF-Worker-Token rather than a user JWT. The function checks it
+# before creating a service-role client; keep HNF_WORKER_TOKEN secret.
+verify_jwt = false

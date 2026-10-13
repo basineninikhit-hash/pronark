@@ -1,0 +1,25 @@
+{
+  "name": "hnf-incentive-program",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:test": "vite --mode test --host 127.0.0.1 --port 5174",
+    "build": "tsc -b && vite build",
+    "test": "node tests/migrations.mjs && node tests/email-sandbox.mjs && node tests/weekly-report.mjs && node tests/sheet-mirror.mjs && node tests/push-automation.mjs && node tests/custom-reminders.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.58.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.5",
+    "vitest": "^3.2.4"
+  }
+}
