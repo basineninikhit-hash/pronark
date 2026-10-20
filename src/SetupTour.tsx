@@ -1,5 +1,10 @@
 import { useState } from 'react';
-import './guided-setup.css';
+import { ArrowLeft, ArrowRight, GripVertical } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { SetupActions, SetupCard, SetupShell } from '@/components/setup-shell';
+import { Disclosure, FieldRow, FormField } from '@/components/pronark';
+import { MoneyExample } from '@/GuidedSetup';
 
 const screens=[
  {tag:'WELCOME',title:'Let’s make Pronark yours.',body:'A new member starts here, then sets up one part at a time.',faq:['Will this change my account?','No. This tour is a preview and never saves anything.']},
@@ -14,5 +19,18 @@ const screens=[
 export function SetupTour({onClose}:{onClose:()=>void}){
  const [index,setIndex]=useState(0);
  const current=screens[index];
- return <main className="guided-setup guide-tour"><header className="guide-top"><img src={import.meta.env.BASE_URL+"pronark-logo-transparent.png"} alt="Pronark"/><span>SETUP PREVIEW · NO CHANGES SAVED</span><button className="guide-save" onClick={onClose}>Close preview</button></header><div className="guide-progress"><span>Screen {index+1} of {screens.length}</span><div><i style={{width:`${(index+1)/screens.length*100}%`}}/></div></div><section className="guide-card" aria-live="polite"><span className="eyebrow">{current.tag}</span><h1>{current.title}</h1><p>{current.body}</p>{index===1&&<div className="guide-tour-example"><label>Display name<input readOnly value="Your name"/></label><div className="guide-form-grid"><label>Step goal<input readOnly value="10,000 steps"/></label><label>Water goal<input readOnly value="2 liters"/></label></div></div>}{index===2&&<div className="guide-companions" aria-label="Companion examples">{['🤖 Sprout robot','🐶 Sunny dog','🐱 Cozy cat','✨ Dreamy muse','🌱 Gentle helper'].map(x=><div className="guide-tour-tile" key={x}>{x}</div>)}</div>}{index===3&&<div className="guide-tour-tile">🏃 Morning run <small>Mon · Wed · Fri · 2 miles · $2.00 reward</small></div>}{index===4&&<div className="guide-task-list">{['☀️ Morning routine','🏃 Morning run','💧 Water goal'].map((x,i)=><div className="guide-task" key={x}><span>⋮⋮</span><strong>{i+1}. {x}</strong></div>)}</div>}{index===5&&<div className="guide-paths"><div className="guide-tour-tile"><strong>Choose my own goals</strong><small>Set any target amount</small></div><div className="guide-tour-tile"><strong>Guide me from a budget</strong><small>Optional, private illustration</small></div></div>}{index===6&&<div className="guide-money-example"><div><strong>$500</strong><span>Goal target</span></div><div><strong>$20</strong><span>Wallet balance</span></div><div><strong>$8</strong><span>Assigned</span></div></div>}<details className="guide-faq"><summary>Frequently asked questions</summary><div><strong>{current.faq[0]}</strong><p>{current.faq[1]}</p></div></details><div className="guide-actions"><button className="secondary" disabled={index===0} onClick={()=>setIndex(index-1)}>← Back</button>{index<screens.length-1?<button onClick={()=>setIndex(index+1)}>Next →</button>:<button onClick={onClose}>Return to my account</button>}</div></section></main>;
+ const tile='rounded-xl bg-muted/50 px-3.5 py-3 text-sm ring-1 ring-foreground/5';
+ return <SetupShell label="Setup preview · no changes saved" step={index+1} total={screens.length} stepKey={index} actions={<Button variant="outline" size="sm" onClick={onClose}>Close preview</Button>}>
+  <SetupCard eyebrow={current.tag} title={current.title}>
+   <p className="text-muted-foreground" aria-live="polite">{current.body}</p>
+   {index===1&&<div className="flex flex-col gap-3"><FormField label="Display name"><Input readOnly value="Your name"/></FormField><FieldRow><FormField label="Step goal"><Input readOnly value="10,000 steps"/></FormField><FormField label="Water goal"><Input readOnly value="2 liters"/></FormField></FieldRow></div>}
+   {index===2&&<div className="grid grid-cols-3 gap-2 sm:grid-cols-5" aria-label="Companion examples">{['🤖 Sprout robot','🐶 Sunny dog','🐱 Cozy cat','✨ Dreamy muse','🌱 Gentle helper'].map(x=><div key={x} className={tile+' text-center text-xs'}><span className="block text-2xl">{x.split(' ')[0]}</span>{x.split(' ').slice(1).join(' ')}</div>)}</div>}
+   {index===3&&<div className={tile}><strong className="font-medium">🏃 Morning run</strong><small className="block text-xs text-muted-foreground">Mon · Wed · Fri · 2 miles · $2.00 reward</small></div>}
+   {index===4&&<div className="flex flex-col gap-2">{['☀️ Morning routine','🏃 Morning run','💧 Water goal'].map((x,i)=><div key={x} className={tile+' flex items-center gap-2'}><GripVertical className="size-4 text-muted-foreground" aria-hidden="true"/><strong className="font-medium">{i+1}. {x}</strong></div>)}</div>}
+   {index===5&&<div className="grid gap-2 sm:grid-cols-2"><div className={tile}><strong className="font-medium">Choose my own goals</strong><small className="block text-xs text-muted-foreground">Set any target amount</small></div><div className={tile}><strong className="font-medium">Guide me from a budget</strong><small className="block text-xs text-muted-foreground">Optional, private illustration</small></div></div>}
+   {index===6&&<MoneyExample/>}
+   <SetupActions><Button size="lg" variant="outline" disabled={index===0} onClick={()=>setIndex(index-1)}><ArrowLeft data-icon="inline-start"/>Back</Button>{index<screens.length-1?<Button size="lg" onClick={()=>setIndex(index+1)}>Next<ArrowRight data-icon="inline-end"/></Button>:<Button size="lg" onClick={onClose}>Return to my account</Button>}</SetupActions>
+   <Disclosure summary="Frequently asked questions"><strong className="text-foreground">{current.faq[0]}</strong><p>{current.faq[1]}</p></Disclosure>
+  </SetupCard>
+ </SetupShell>;
 }
