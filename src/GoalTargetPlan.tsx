@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import './goal-target-plan.css';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import { Disclosure, ErrorText, FieldRow, Form, FormField, SectionHeading } from '@/components/pronark';
 
 type Plan={category_id:string;increment_cents:number;starts_on:string;enabled:boolean;revision:number};
 const money=(cents:number)=>'$'+(cents/100).toFixed(2);
@@ -12,5 +17,16 @@ export function GoalTargetPlan({client,categoryId,today,readOnly}:{client:Supaba
  function begin(){setAmount(plan?(plan.increment_cents/100).toFixed(2):'');setStart(plan?.starts_on??today);setEnabled(plan?.enabled??true);setEditing(true)}
  async function save(){setBusy(true);setError('');const {data,error:failure}=await client.rpc('save_category_target_plan',{p_category:categoryId,p_increment_cents:Math.round(Number(amount)*100),p_starts_on:start,p_enabled:enabled,p_expected_revision:plan?.revision??0});if(failure)setError(failure.message);else{setPlan({category_id:categoryId,increment_cents:Math.round(Number(amount)*100),starts_on:start,enabled,revision:Number(data)});setEditing(false)}setBusy(false)}
  if(readOnly)return null;
- return <section className="goal-target-plan card"><div><span className="eyebrow">OPTIONAL TARGET GROWTH</span><h3>Grow this goal on the 1st and 15th</h3><p>This increases the goal amount only. It never adds wallet earnings or assigned savings.</p></div>{error&&<p role="alert" className="error">{error}</p>}{plan?<><p><strong>{money(plan.increment_cents)}</strong> added to this goal each 1st and 15th · {plan.enabled?'Active':'Paused'}</p><p>Next planned increase: {plan.enabled?nextDate(today,plan.starts_on):'Paused'} · About {money(plan.increment_cents*2)} per month / {money(plan.increment_cents*24)} per year.</p></>:<p>No automatic goal increases set.</p>}{ready&&!editing&&!error&&<button className="secondary" onClick={begin}>{plan?'Edit or pause plan':'Set a plan'}</button>}{editing&&<div className="goal-target-plan-form"><label>Increase each time ($)<input inputMode="decimal" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="75.00"/></label><label>Start on or after<input type="date" min={plan?.starts_on??today} value={start} onChange={e=>setStart(e.target.value)}/></label><label className="goal-plan-checkbox"><input type="checkbox" checked={enabled} onChange={e=>setEnabled(e.target.checked)}/> Plan active</label><details><summary>What happens if I pause or edit it?</summary><p>Past increases stay. Pausing stops future increases. Editing the amount changes future increases only.</p></details><div className="line"><button className="secondary" onClick={()=>setEditing(false)}>Cancel</button><button disabled={busy||!/^\d+(\.\d{1,2})?$/.test(amount)||Number(amount)<=0||Number(amount)>1000000||(start<today&&start!==plan?.starts_on)} onClick={save}>Save plan</button></div></div>}</section>
+ return <Card><CardContent className="flex flex-col gap-3">
+  <SectionHeading title="Grow this goal on the 1st and 15th" description="Optional. This increases the goal amount only. It never adds wallet earnings or assigned savings." action={plan&&<Badge variant={plan.enabled?'default':'secondary'}>{plan.enabled?'Active':'Paused'}</Badge>}/>
+  <ErrorText>{error}</ErrorText>
+  {plan?<div className="rounded-xl bg-muted/50 p-3 text-sm"><p><strong className="tabular">{money(plan.increment_cents)}</strong> added to this goal each 1st and 15th.</p><p className="mt-1 text-xs text-muted-foreground">Next planned increase: {plan.enabled?nextDate(today,plan.starts_on):'Paused'} · About {money(plan.increment_cents*2)} per month / {money(plan.increment_cents*24)} per year.</p></div>:<p className="text-sm text-muted-foreground">No automatic goal increases set.</p>}
+  {ready&&!editing&&!error&&<Button variant="outline" className="self-start" onClick={begin}>{plan?'Edit or pause plan':'Set a plan'}</Button>}
+  {editing&&<Form className="rounded-xl ring-1 ring-foreground/10 p-3.5">
+   <FieldRow><FormField label="Increase each time ($)"><Input inputMode="decimal" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="75.00"/></FormField><FormField label="Start on or after"><Input type="date" min={plan?.starts_on??today} value={start} onChange={e=>setStart(e.target.value)}/></FormField></FieldRow>
+   <label className="flex items-center justify-between gap-3 text-sm">Plan active<Switch checked={enabled} onCheckedChange={v=>setEnabled(v)}/></label>
+   <Disclosure summary="What happens if I pause or edit it?">Past increases stay. Pausing stops future increases. Editing the amount changes future increases only.</Disclosure>
+   <div className="flex justify-end gap-2"><Button variant="outline" onClick={()=>setEditing(false)}>Cancel</Button><Button disabled={busy||!/^\d+(\.\d{1,2})?$/.test(amount)||Number(amount)<=0||Number(amount)>1000000||(start<today&&start!==plan?.starts_on)} onClick={save}>Save plan</Button></div>
+  </Form>}
+ </CardContent></Card>
 }
