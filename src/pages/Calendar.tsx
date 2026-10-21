@@ -56,7 +56,7 @@ export function CalendarPage({ owner, tasks, settings, completions, kpis, kpiLog
                 {ownerTasks.map((t) => <NativeSelectOption key={t.id} value={t.id}>{t.title}</NativeSelectOption>)}
               </NativeSelect>
             </div>
-            <div className="overflow-hidden">
+            <div className="-m-1.5 overflow-hidden p-1.5">
               <div ref={gridRef} className="grid grid-cols-7 gap-1 sm:gap-1.5">
                 {weekdays.map((d) => <div key={d} className="pb-1 text-center text-[0.6875rem] font-medium text-muted-foreground">{d}</div>)}
                 {Array.from({ length: offset }, (_, i) => <span key={'b' + i} />)}

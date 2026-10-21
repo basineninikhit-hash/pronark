@@ -104,10 +104,11 @@ export function App() {
     else { setDataReady(false); setProfiles([]); setMemberships([]); setTasks([]); }
   }, [session?.user.id]);
 
+  /** Runs a write, reloads data, and shows `message` as a toast (pass '' to stay quiet). */
   async function run(action: () => Promise<unknown>, message: string) {
     setBusy(true); setError('');
     try { await action(); } catch (e) { setError(errorText(e)); setBusy(false); return false; }
-    try { await refresh(); toast.success(message); }
+    try { await refresh(); if (message) toast.success(message); }
     catch (e) { setError(`${message} The latest records could not be loaded: ${errorText(e)}. Refresh the page before making another change.`); }
     finally { setBusy(false); }
     return true;
@@ -163,13 +164,25 @@ export function App() {
     const existing = completions.find((c) => c.task_id === t.id && c.local_date === date);
     const next = !existing?.completed;
     if (date < today && !confirm('Please remember to be honest. Save this correction?')) return false;
-    const saved = await run(() => rpc('save_completion', { p_task: t.id, p_date: date, p_completed: next, p_expected_version: existing?.version ?? 0 }), next ? 'Saved checkoff.' : 'Correction saved.');
-    if (!saved) return false;
-    if (!next || date !== today) return true;
-    if (ownExperience?.chatter === 'full') {
+    // One toast that "thinks" while saving, then turns into the result. It stays up at least
+    // briefly so a fast save doesn't flash; the checkbox itself already changed on tap.
+    const toastId = toast.loading(next ? 'Great job! Checking that off for you…' : 'No problem! Unchecking that for you…');
+    const [saved] = await Promise.all([
+      run(() => rpc('save_completion', { p_task: t.id, p_date: date, p_completed: next, p_expected_version: existing?.version ?? 0 }), ''),
+      new Promise((resolve) => setTimeout(resolve, 700)),
+    ]);
+    if (!saved) { toast.error('Couldn’t save that. Please try again.', { id: toastId }); return false; }
+    let cheer: { text: string; cue: string } | null = null;
+    if (next && date === today && ownExperience?.chatter === 'full') {
       const key = 'pronark-reaction:' + own + ':' + t.id + ':' + date;
-      if (!localStorage.getItem(key)) { localStorage.setItem(key, '1'); const reaction = reactionFor(t.reaction_category ?? 'other', t.id, date); toast(reaction.text, { icon: <span className="text-lg">{reaction.cue}</span>, duration: 5000 }); }
+      if (!localStorage.getItem(key)) { localStorage.setItem(key, '1'); cheer = reactionFor(t.reaction_category ?? 'other', t.id, date); }
     }
+    toast.success(next ? 'All done and ready to go!' : 'Unchecked. You’re all set.', {
+      id: toastId,
+      description: cheer ? `${cheer.cue} ${cheer.text}` : undefined,
+      duration: cheer ? 5000 : 2500,
+    });
+    if (!next || date !== today) return true;
     if (due.length && due.every((x) => x.id === t.id || completions.some((c) => c.task_id === x.id && c.local_date === today && c.completed)) && ownExperience?.chatter !== 'off') {
       const key = 'pronark-celebrated-checklist:' + own + ':' + today;
       if (!localStorage.getItem(key)) { localStorage.setItem(key, '1'); setCelebration('You finished every scheduled activity today. That is worth celebrating!'); }
@@ -178,6 +191,21 @@ export function App() {
   }
 
   const go = (view: View) => { setPage(view); window.scrollTo({ top: 0 }); };
+
+  async function startOver() {
+    const saved = await run(async () => {
+      try { await rpc('start_over', { p_confirm: 'DELETE' }); }
+      catch (e) {
+        if (/start_over|schema cache/i.test(errorText(e))) throw new Error('Starting over needs the latest database update (202610200023_start_over.sql). Nothing was deleted.');
+        throw e;
+      }
+    }, 'Your data was deleted. Let’s start fresh!');
+    if (!saved) return false;
+    // Device-only memories (companion choice, shown celebrations) belong to the old data too.
+    for (const key of Object.keys(localStorage)) if (key.startsWith('pronark-') && key.includes(own)) localStorage.removeItem(key);
+    setCompanion('robot'); setPerson(own); setPage('Home');
+    return true;
+  }
 
   const fallback = <Splash />;
   if (!ready) return <Splash>Loading your account…</Splash>;
@@ -229,7 +257,7 @@ export function App() {
         <AppBar title={pageTitles[page]} accountMenu={accountMenu}
           switcher={<Segmented label="Me or groups" value={page === 'Groups' ? 'groups' : 'me'} onChange={(v) => { setPerson(own); go(v === 'groups' ? 'Groups' : 'Home'); }}
             options={[{ value: 'me', label: 'Me' }, { value: 'groups', label: 'Groups' }]} />} />
-        <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-4 px-4 pt-2 pb-32 md:px-8 md:pt-4 md:pb-12">
+        <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-4 overflow-x-clip px-4 pt-2 pb-32 md:px-8 md:pt-4 md:pb-12">
           {readOnly && <Alert variant="info"><AlertDescription>Viewing partner · Read-only</AlertDescription></Alert>}
           {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
           <Suspense fallback={<PageSkeleton />}>
@@ -274,7 +302,7 @@ export function App() {
           )}
           {page === 'Groups' && <GroupsPage client={supabase} owner={own} tasks={tasks.filter((t) => t.owner_id === own)} />}
           {page === 'Settings' && !readOnly && (
-            <SettingsPage profile={ownProfile} today={today} busy={busy} hasPartner={!!partner} issued={issued} pushStatus={pushStatus}
+            <SettingsPage profile={ownProfile} today={today} busy={busy} error={error} hasPartner={!!partner} onStartOver={startOver} issued={issued} pushStatus={pushStatus}
               onEditGoals={() => setGoalsEditor(true)} onInvite={() => run(async () => { setIssued(await rpc<string>('issue_invitation')); }, 'Invitation issued.')}
               onCheckPush={checkPush} onEnablePush={enablePush}
               report={<WeeklyReportSettings preference={reportPrefs.find((p) => p.owner_id === own)} busy={busy}

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 
 const db = new PGlite();
 await db.exec(`create role anon; create role authenticated; create role service_role; create schema auth; create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz); create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; create function digest(text,text) returns bytea language sql immutable as $$ select decode(md5($1),'hex') $$; create function gen_random_bytes(integer) returns bytea language sql volatile as $$ select decode(repeat('ab',$1),'hex') $$;`);
-for (const file of ['supabase/migrations/202609210001_foundation.sql','supabase/migrations/202609210002_rewards.sql','supabase/migrations/202609210003_rpc_permissions.sql','supabase/migrations/202609210004_atomic_setup.sql','supabase/migrations/202609220005_program_features.sql','supabase/migrations/202609220006_delivery_and_mirror.sql','supabase/migrations/202609220007_weekly_delivery_leases.sql','supabase/migrations/202609220008_sandbox_report_consent.sql','supabase/migrations/202609220009_invitation_pgcrypto_path.sql','supabase/migrations/202609220010_push_delivery_leases.sql','supabase/migrations/202609250011_goals_profile.sql','supabase/migrations/202609260012_rewards_overhaul.sql','supabase/migrations/202609260013_positive_balance_bonuses.sql','supabase/migrations/202610070014_activity_kpis.sql','supabase/migrations/202610080015_private_metrics.sql','supabase/migrations/202610080016_checklist_presentation.sql','supabase/migrations/202610080017_goal_target_growth.sql','supabase/migrations/202610080018_guided_onboarding.sql','supabase/migrations/202610100019_companion_reactions.sql','supabase/migrations/202610100020_custom_reminders.sql','supabase/migrations/202610100021_private_groups.sql','supabase/migrations/202610100022_together_garden.sql']) {
+for (const file of ['supabase/migrations/202609210001_foundation.sql','supabase/migrations/202609210002_rewards.sql','supabase/migrations/202609210003_rpc_permissions.sql','supabase/migrations/202609210004_atomic_setup.sql','supabase/migrations/202609220005_program_features.sql','supabase/migrations/202609220006_delivery_and_mirror.sql','supabase/migrations/202609220007_weekly_delivery_leases.sql','supabase/migrations/202609220008_sandbox_report_consent.sql','supabase/migrations/202609220009_invitation_pgcrypto_path.sql','supabase/migrations/202609220010_push_delivery_leases.sql','supabase/migrations/202609250011_goals_profile.sql','supabase/migrations/202609260012_rewards_overhaul.sql','supabase/migrations/202609260013_positive_balance_bonuses.sql','supabase/migrations/202610070014_activity_kpis.sql','supabase/migrations/202610080015_private_metrics.sql','supabase/migrations/202610080016_checklist_presentation.sql','supabase/migrations/202610080017_goal_target_growth.sql','supabase/migrations/202610080018_guided_onboarding.sql','supabase/migrations/202610100019_companion_reactions.sql','supabase/migrations/202610100020_custom_reminders.sql','supabase/migrations/202610100021_private_groups.sql','supabase/migrations/202610100022_together_garden.sql','supabase/migrations/202610200023_start_over.sql']) {
   try { await db.exec(readFileSync(file,'utf8').replace('create extension if not exists pgcrypto;','')); console.log(`PASS migration ${file}`); }
   catch (error) { console.error(`FAIL migration ${file}: ${error.message}`); process.exitCode=1; break; }
 }
@@ -288,7 +288,32 @@ if (!process.exitCode) {
  assert.equal(Number((await query('select read_group_garden($1) data',[group]))[0].data.find(p=>p.id===checkoffPlant).progress),6);
  await as(outsider);
  await reject('select read_group_garden($1)',[group]);
+ // Start over: a owns `group` (with b) and belongs to `family` (owned by outsider).
  await db.exec('reset role');
+ const bTasksBefore=(await query('select count(*)::int n from tasks where owner_id=$1',[b]))[0].n;
+ await db.exec('set role anon');
+ await reject('select start_over($1)',['DELETE']);
+ await db.exec('reset role');
+ await as(a);
+ await reject('select start_over($1)',['delete']);
+ await query('select start_over($1)',['DELETE']);
+ await db.exec('reset role');
+ const userColumns=await query("select c.table_name t,c.column_name col from information_schema.columns c join information_schema.tables x on x.table_name=c.table_name and x.table_schema=c.table_schema where c.table_schema='public' and x.table_type='BASE TABLE' and c.column_name in ('owner_id','user_id','creator_id','from_user','to_user','created_by') and c.table_name not in ('profiles','audit_events')");
+ for(const {t,col} of userColumns) assert.equal((await query(`select count(*)::int n from ${t} where ${col}=$1`,[a]))[0].n,0,`start_over left ${t}.${col}`);
+ const reset=(await query('select * from profiles where user_id=$1',[a]))[0];
+ assert.equal(reset.setup_completed_at,null); assert.equal(reset.display_name,'');
+ assert.equal((await query('select owner_id from groups where id=$1',[group]))[0].owner_id,b);
+ assert.equal((await query('select creator_id from garden_plants where id=$1',[plant]))[0].creator_id,b);
+ assert.equal((await query('select count(*)::int n from memberships where group_id=$1',[family]))[0].n,1);
+ assert.equal((await query('select count(*)::int n from tasks where owner_id=$1',[b]))[0].n,bTasksBefore);
+ assert.equal((await query("select count(*)::int n from sheet_jobs where entity='account_reset'"))[0].n,1);
+ assert.ok((await query("select count(*)::int n from audit_events where owner_id=$1 and entity<>'account_reset'",[a]))[0].n>0,'audit history is kept for the Sheets mirror');
+ await as(a);
+ await query('select start_setup($1,$2,$3,$4,$5::jsonb)',['Alice again',10000,8,'cups',JSON.stringify(seed.slice(0,2))]);
+ assert.equal((await query('select count(*)::int n from tasks where owner_id=$1',[a]))[0].n,2);
+ assert.equal((await query('select count(*)::int n from memberships where user_id=$1',[a]))[0].n,1);
+ await db.exec('reset role');
+ console.log('PASS start over: full wipe, group hand-off, kept audit/Sheets marker, setup again');
  console.log('PASS wallet purchases, linked-goal reversals, allocations, template ownership, report and notification preferences');
  console.log('PASS item-to-category rollup, spent/leftover funds, target drop on purchase, bonus pause while negative');
  console.log('PASS group isolation, invitation, setup retry, cross-owner write, daily/MWF rewards, rest-day bonus, correction, idempotency, prior-month lock, next-day archive');

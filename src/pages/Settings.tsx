@@ -1,15 +1,16 @@
 import { useState, type ReactNode } from 'react';
-import { Bell, Copy, Mail } from 'lucide-react';
+import { Bell, Copy, Mail, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { FormField, SectionHeading } from '@/components/pronark';
+import { Sheet, SheetFooter } from '@/components/sheet';
+import { ErrorText, FormField, SectionHeading } from '@/components/pronark';
 import { isFirstOfMonth, type Profile, type ReportPreference } from '@/lib/domain';
 
-export function SettingsPage({ profile, today, busy, hasPartner, issued, pushStatus, onEditGoals, onInvite, onCheckPush, onEnablePush, report, children }: {
-  profile: Profile; today: string; busy: boolean; hasPartner: boolean; issued: string; pushStatus: string;
-  onEditGoals: () => void; onInvite: () => void; onCheckPush: () => void; onEnablePush: () => void; report: ReactNode; children?: ReactNode;
+export function SettingsPage({ profile, today, busy, error, hasPartner, issued, pushStatus, onEditGoals, onInvite, onCheckPush, onEnablePush, onStartOver, report, children }: {
+  profile: Profile; today: string; busy: boolean; error: string; hasPartner: boolean; issued: string; pushStatus: string;
+  onEditGoals: () => void; onInvite: () => void; onCheckPush: () => void; onEnablePush: () => void; onStartOver: () => Promise<boolean>; report: ReactNode; children?: ReactNode;
 }) {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
@@ -46,7 +47,55 @@ export function SettingsPage({ profile, today, busy, hasPartner, issued, pushSta
         </CardContent>
       </Card>
       {report}
+      <StartOverCard busy={busy} error={error} onStartOver={onStartOver} />
     </div>
+  );
+}
+
+/** Irreversible reset, so it asks the member to type DELETE (and says exactly what goes and what stays). */
+function StartOverCard({ busy, error, onStartOver }: { busy: boolean; error: string; onStartOver: () => Promise<boolean> }) {
+  const [open, setOpen] = useState(false), [typed, setTyped] = useState('');
+  const close = () => { setOpen(false); setTyped(''); };
+  return (
+    <Card className="ring-destructive/30">
+      <CardContent className="flex flex-col gap-3">
+        <SectionHeading title={<span className="inline-flex items-center gap-2 text-destructive"><TriangleAlert className="size-4" aria-hidden="true" />Start over</span>}
+          description="Delete everything you’ve added to Pronark and set up again from the beginning. Your Google sign-in stays the same." />
+        <Button variant="destructive" className="self-start" onClick={() => setOpen(true)}>Delete my data and start over</Button>
+      </CardContent>
+      <Sheet open={open} onClose={close} title="Delete your data and start over?" description="This can’t be undone.">
+        <div className="flex flex-col gap-4 text-sm">
+          <div className="flex flex-col gap-1.5">
+            <h3 className="text-headline">What will be deleted</h3>
+            <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
+              <li>Your activities and checkoff history</li>
+              <li>Your earnings, wallet balance and purchases</li>
+              <li>Your savings goals and wishlist</li>
+              <li>Your measurements, reminders, weekly email and companion settings</li>
+            </ul>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <h3 className="text-headline">What stays</h3>
+            <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
+              <li>Your Google sign-in. You’ll go back to the start of setup.</li>
+              <li>Other members’ data. You’ll leave your groups; a group you own passes to the member who joined first.</li>
+              <li>Your Google Sheet backup. Nothing there is erased; a new row notes that you started over.</li>
+            </ul>
+          </div>
+          <FormField label={<>Type <strong className="font-mono">DELETE</strong> to confirm</>}>
+            <Input value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" autoCapitalize="characters" spellCheck={false} />
+          </FormField>
+          <ErrorText>{error}</ErrorText>
+          <SheetFooter>
+            <Button variant="outline" onClick={close}>Cancel</Button>
+            <Button variant="destructive" className="bg-destructive text-white hover:bg-destructive/90" disabled={busy || typed !== 'DELETE'}
+              onClick={async () => { if (await onStartOver()) close(); }}>
+              {busy ? 'Deleting…' : 'Delete everything and start over'}
+            </Button>
+          </SheetFooter>
+        </div>
+      </Sheet>
+    </Card>
   );
 }
 

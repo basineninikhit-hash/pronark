@@ -51,11 +51,11 @@ export function GoalsPage({ client, owner, readOnly, balance, categories, wishes
   // Push/pop: detail enters from the right and leaves the way it came.
   const viewRef = useRef<HTMLDivElement>(null), direction = useRef(0);
   const push = useSpring(0, (v) => { if (viewRef.current) { viewRef.current.style.translate = `${(v * 40).toFixed(2)}px 0`; viewRef.current.style.opacity = String(1 - Math.min(1, Math.abs(v)) * 0.8); } }, { precision: 0.002 });
-  const open = (id: string) => { direction.current = id ? 1 : -1; setSelectedId(id); };
+  const open = (id: string) => { direction.current = id ? 1 : -1; setSelectedId(id); window.scrollTo({ top: 0 }); };
   useLayoutEffect(() => { if (direction.current && !prefersReducedMotion()) { push.set(direction.current); push.to(0, { damping: 1, response: 0.4 }); } direction.current = 0; }, [selectedId, push]);
 
   return (
-    <div className="mx-auto w-full max-w-4xl overflow-x-clip">
+    <div className="mx-auto w-full max-w-4xl">
       <div ref={viewRef} className="flex flex-col gap-5">
         {!selected ? (
           <>
@@ -115,13 +115,13 @@ export function GoalsPage({ client, owner, readOnly, balance, categories, wishes
             <Button variant="ghost" className="-ml-2 self-start" onClick={() => open('')} aria-label="Back to goals"><ChevronLeft data-icon="inline-start" />Goals</Button>
             <Card>
               <CardContent className="flex flex-col gap-4">
-                <div className="flex items-start gap-3">
-                  <GoalIcon category={selected.category_key} className="size-12" />
-                  <div className="min-w-0 flex-1">
-                    <h2 className="text-title">{selected.category_key}</h2>
-                    <p className="text-sm text-muted-foreground"><strong className="tabular text-foreground">{cents(funded)}</strong> earned dollars assigned toward a {cents(target)} goal</p>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-3">
+                    <GoalIcon category={selected.category_key} className="size-12" />
+                    <h2 className="text-title min-w-0 flex-1 truncate">{selected.category_key}</h2>
+                    {!readOnly && <Button variant="outline" size="sm" className="shrink-0" onClick={() => setTargetOpen(true)}><Pencil data-icon="inline-start" />{selected.general_target_cents ? 'Edit goal' : 'Set goal'}</Button>}
                   </div>
-                  {!readOnly && <Button variant="outline" size="sm" onClick={() => setTargetOpen(true)}><Pencil data-icon="inline-start" />{selected.general_target_cents ? 'Edit goal' : 'Set goal'}</Button>}
+                  <p className="text-sm text-muted-foreground"><strong className="tabular text-foreground">{cents(funded)}</strong> earned dollars assigned toward a {cents(target)} goal</p>
                 </div>
                 <div className="flex flex-col gap-2">
                   <Meter value={funded} max={target} className="h-2.5" label={`${percent(funded, target)}% funded`} />
