@@ -50,7 +50,7 @@ const pageTitles: Record<View, string> = { Home: 'Your daily wins', Calendar: 'Y
 const pageSubtitles: Record<View, string> = {
   Home: 'Small steps today. Bigger tomorrows.',
   Calendar: 'See your progress, build consistency, and make it yours.',
-  Insights: 'A snapshot of your month.',
+  Insights: 'Notice the patterns behind your progress.',
   Goals: 'Use your wallet to fund the things you want. Assign funds whenever you’re ready.',
   Wallet: 'Use your earned funds for the things that motivate you.',
   Groups: 'Share your progress with people you trust.',

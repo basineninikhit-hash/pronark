@@ -4,11 +4,13 @@ import { ArrowLeft, ArrowRight, BellRing, CalendarDays, Check, ChartColumn, Chev
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
-import { ActivityIcon, Disclosure, EmptyState, ProgressRing } from '@/components/pronark';
+import { ActivityIcon, AnimatedNumber, Disclosure, EmptyState } from '@/components/pronark';
+import { CalendarCheckDoodle, GiftBoxDoodle, StarDoodle, TrophyDoodle } from '@/components/doodles';
+import { PlayStat, Pop, toneSurface, type Tone } from '@/components/playful';
 import { cn } from '@/lib/utils';
-import { dayNumber, formatDate, isDue, monthStart, settingFor, type ActivityKpi, type ActivityKpiLog, type Completion, type Earning, type Setting, type Task } from '@/lib/domain';
+import { cents, dayNumber, formatDate, monthStart, type ActivityKpi, type ActivityKpiLog, type Completion, type Earning, type Setting, type Task } from '@/lib/domain';
 import { prefersReducedMotion, useSpring } from '@/lib/motion';
-import { INSIGHT_UNLOCK_DAYS, findInsights, lower, monthRecords, short, trackingDays, weeklyTrend, type Insight, type Record_ } from '@/lib/insights';
+import { INSIGHT_UNLOCK_DAYS, addDays, findInsights, lower, monthRecords, short, trackingDays, weeklyTrend, type Insight, type Record_ } from '@/lib/insights';
 import { Meter } from '@/components/pronark';
 import { InsightsDashboard } from '@/InsightsDashboard';
 import { ProgressPage } from '@/ProgressPage';
@@ -35,6 +37,10 @@ export function InsightsHub({ client, owner, today, tasks, settings, completions
   const insights = useMemo(() => findInsights(records, monthName), [records, monthName]);
   const weeks = useMemo(() => weeklyTrend(records, month, today), [records, month, today]);
   const done = records.filter((r) => r.done).length;
+  const earnedInMonth = earnings.filter((e) => e.active && e.owner_id === owner && e.earned_date.startsWith(month.slice(0, 7)) && e.earned_date <= today).reduce((n, e) => n + e.cents, 0);
+  // This week (Mon–Sun) regardless of the month picker.
+  const weekStart = addDays(today, -((dayNumber(today) + 6) % 7));
+  const weekRecords = useMemo(() => { const out: Record_[] = []; for (const m of new Set([monthStart(weekStart), monthStart(today)])) out.push(...monthRecords(owner, m, today, tasks, settings, completions).filter((r) => r.day >= weekStart)); return out; }, [owner, weekStart, today, tasks, settings, completions]);
 
   // Push/pop between screens, sliding in from the side you're heading.
   const screenRef = useRef<HTMLDivElement>(null), direction = useRef(0);
@@ -60,39 +66,38 @@ export function InsightsHub({ client, owner, today, tasks, settings, completions
                 {months.map((m) => <NativeSelectOption key={m} value={m}>{formatDate(m, { month: 'long', year: 'numeric' })} · {m === currentMonth ? 'so far' : 'complete month'}</NativeSelectOption>)}
               </NativeSelect>
             </div>
-            <Card>
-              <CardContent className="flex items-center gap-5 py-1 sm:gap-6 sm:py-2">
-                <ProgressRing value={records.length ? done / records.length : 0} size={116} stroke={11} label={`${done} of ${records.length} scheduled checkoffs completed`}>
-                  <strong className="tabular text-2xl font-bold sm:text-3xl">{records.length ? Math.round((done / records.length) * 100) + '%' : '—'}</strong>
-                </ProgressRing>
-                <div className="hidden h-20 w-px bg-foreground/10 sm:block" />
-                <div>
-                  <p className="tabular text-2xl font-bold tracking-tight sm:text-3xl">{done} of {records.length}</p>
-                  <p className="text-sm text-muted-foreground sm:text-base">scheduled checkoffs completed{month === currentMonth ? ' so far' : ''}</p>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <PlayStat layout="stack" tone="mint" icon={<CalendarCheckDoodle />} label="Checkoffs" value={<>{done} of {records.length}</>} hint={`scheduled checkoffs completed${month === currentMonth ? ' so far' : ''}.`} />
+              <PlayStat layout="stack" tone="lavender" icon={<StarDoodle />} label="Consistency" value={records.length ? Math.round((done / records.length) * 100) + '%' : '—'} hint="of your scheduled habits completed." />
+              <PlayStat layout="stack" tone="peach" icon={<GiftBoxDoodle />} label="Rewards earned" value={<AnimatedNumber value={earnedInMonth} format={cents} />} hint="from your habit progress." />
+            </div>
 
             {unlocked ? (
-            <section className="flex flex-col gap-3" aria-labelledby="noticed-title">
-                <div><h2 id="noticed-title" className="text-title font-bold">What we noticed</h2><p className="text-sm text-muted-foreground">A few patterns from your month that might be helpful.</p></div>
+            <section className="flex flex-col gap-4 rounded-3xl bg-card p-4 ring-1 ring-foreground/8 md:p-6" aria-labelledby="noticed-title">
+                <div><h2 id="noticed-title" className="text-title text-2xl font-bold md:text-3xl">What we noticed</h2><p className="text-sm text-muted-foreground">A few patterns from your month that might be helpful.</p></div>
                 {noticed.length ? (
                   <div className="grid gap-3 md:grid-cols-3">
-                    {noticed.map((i) => (
+                    {noticed.map((i, n) => {
+                      const tone: Tone = i.kind === 'pattern' ? 'rose' : n === 2 ? 'lavender' : 'mint';
+                      return (
                       <button key={i.id} type="button" onClick={() => open({ name: 'insight', id: i.id })}
-                        className={cn('group flex flex-col gap-3 rounded-2xl p-4 text-left ring-1 transition-[scale,box-shadow] duration-100 active:scale-[0.98] hover:ring-2',
-                          i.kind === 'win' ? 'bg-mint/60 ring-primary/15 hover:ring-primary/30' : 'bg-lavender/70 ring-lavender-ink/10 hover:ring-lavender-ink/25')}>
+                        className={cn('group relative flex flex-col gap-3 rounded-2xl p-4 text-left ring-1 ring-inset transition-[scale,box-shadow] duration-100 active:scale-[0.98] hover:ring-2', toneSurface[tone])}>
                         <div className="flex items-start gap-3">
-                          <InsightIcon insight={i} />
-                          <div className="min-w-0"><p className="font-semibold leading-snug">{i.headline}</p><p className="mt-1 text-sm text-muted-foreground">{i.detail}</p></div>
+                          <span className="relative grid size-14 shrink-0 place-items-center rounded-full bg-card/80 text-ink">
+                            {i.id.startsWith('top-') ? <TrophyDoodle className="size-8" /> : <ActivityIcon title={i.task.title} className="size-7 text-ink" />}
+                            <Pop tone={tone} className="absolute -top-2 -right-2 size-6" />
+                          </span>
+                          <div className="min-w-0"><p className="font-semibold leading-snug text-foreground">{i.headline}</p><p className="mt-1 text-sm opacity-90">{i.detail}</p></div>
                         </div>
-                        <span className="mt-auto inline-flex items-center gap-1 pl-14 text-sm font-medium text-lavender-ink underline underline-offset-4">{i.link}<ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" /></span>
+                        <span className="mt-auto inline-flex items-center gap-1 pl-[4.25rem] text-sm font-semibold text-foreground underline underline-offset-4">{i.link}<ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" /></span>
                       </button>
-                    ))}
+                    );})}
                   </div>
                 ) : <EmptyState icon={<Sparkles className="size-5" aria-hidden="true" />}>Patterns show up after a week or two of check-offs. Keep going and check back soon.</EmptyState>}
               </section>
             ) : <LearningCard days={tracked} />}
+
+            <ThisWeek records={weekRecords} today={today} onOpen={() => open({ name: 'trend' })} />
 
             <div className="flex flex-col gap-2">
               {unlocked && <NavRow icon={<FileText />} title="View all insights" onClick={() => open({ name: 'all' })}>Explore every win and pattern from {monthName}.</NavRow>}
@@ -286,6 +291,34 @@ function LearningCard({ days }: { days: number }) {
         <Meter value={Math.min(days, INSIGHT_UNLOCK_DAYS)} max={INSIGHT_UNLOCK_DAYS} className="h-2 bg-card/70" label={`Day ${days} of ${INSIGHT_UNLOCK_DAYS} toward your first insights`} />
       </div>
       <p className="text-xs">Keep checking off your habits. Your progress and weekly trend are below in the meantime.</p>
+    </section>
+  );
+}
+
+/** Checkoffs per day this week (Mon–Sun); the best days glow mint. */
+function ThisWeek({ records, today, onOpen }: { records: Record_[]; today: string; onOpen: () => void }) {
+  const start = addDays(today, -((dayNumber(today) + 6) % 7));
+  const days = Array.from({ length: 7 }, (_, i) => { const day = addDays(start, i), rows = records.filter((r) => r.day === day); return { day, done: rows.filter((r) => r.done).length, due: rows.length }; });
+  const max = Math.max(1, ...days.map((d) => d.done)), best = Math.max(...days.map((d) => d.done));
+  return (
+    <section className="relative flex flex-col gap-4 rounded-3xl bg-card p-4 ring-1 ring-foreground/8 md:p-6" aria-labelledby="week-title">
+      <div className="flex items-start justify-between gap-3">
+        <div><h2 id="week-title" className="text-title text-2xl font-bold md:text-3xl">This week</h2><p className="text-sm text-muted-foreground">Checkoffs each day. Your best days glow green.</p></div>
+        <Button variant="ghost" onClick={onOpen}>Weekly trend<ArrowRight data-icon="inline-end" /></Button>
+      </div>
+      <div className="flex h-44 items-end gap-2 border-b border-foreground/10 pb-0 sm:gap-4" role="img" aria-label={'Checkoffs this week: ' + days.map((d) => `${formatDate(d.day, { weekday: 'short' })} ${d.done}`).join(', ')}>
+        {days.map((d) => {
+          const future = d.day > today;
+          return (
+            <div key={d.day} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1.5">
+              <span className="tabular text-sm font-semibold">{future ? '' : d.done}</span>
+              <div className={cn('w-full max-w-16 rounded-t-xl transition-[height] duration-700 ease-out', future ? 'bg-muted' : d.done === best && best > 0 ? 'bg-mint-pop/70' : 'bg-lavender-pop/45')}
+                style={{ height: future ? '6%' : `${Math.max(6, (d.done / max) * 100)}%` }} />
+            </div>
+          );
+        })}
+      </div>
+      <div className="-mt-2 flex gap-2 sm:gap-4">{days.map((d) => <span key={d.day} className={cn('flex-1 text-center text-xs', d.day === today ? 'font-bold text-foreground' : 'text-muted-foreground')}>{formatDate(d.day, { weekday: 'short' })}</span>)}</div>
     </section>
   );
 }

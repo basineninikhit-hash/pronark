@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { Camera, ChevronDown, ChevronRight, Coins, Info, PencilLine, Plus, Receipt, Star, Wallet as WalletIcon } from 'lucide-react';
-import { CoinsDoodle } from '@/components/doodles';
+import { Camera, ChevronDown, ChevronRight, Coins, Info, PencilLine, Plus, Receipt, Wallet as WalletIcon } from 'lucide-react';
+import { CoinsDoodle, StarDoodle } from '@/components/doodles';
+import { PlayStat } from '@/components/playful';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Sheet, SheetFooter } from '@/components/sheet';
 import { TimedUndoButton } from '@/components/timed-undo-button';
-import { AnimatedNumber, EmptyState, ErrorText, FieldRow, Form, FormField, SectionHeading } from '@/components/pronark';
+import { AnimatedNumber, EmptyState, ErrorText, FieldRow, Form, FormField } from '@/components/pronark';
 import { ReceiptCapture } from '@/ReceiptCapture';
 import { cn } from '@/lib/utils';
 import { cents, formatDate, moneyPattern, type Earning, type Purchase, type RunAction } from '@/lib/domain';
@@ -35,9 +36,9 @@ export function WalletPage({ client, readOnly, today, earned, spent, balance, ea
   return (
     <div className="flex w-full max-w-5xl flex-col gap-4">
       <div className="grid gap-3 sm:grid-cols-3">
-        <MoneyCard tone="mint" icon={<CoinsDoodle />} label="Available in wallet" value={balance} hint="Ready to use for your rewards." />
-        <MoneyCard tone="lavender" icon={<Star className="size-9" strokeWidth={1.75} />} label="Total earned" value={earned} hint="From your habit progress." />
-        <MoneyCard tone="peach" icon={<WalletIcon className="size-9" strokeWidth={1.75} />} label="Recorded spending" value={spent} hint="On rewards you chose." />
+        <PlayStat layout="stack" tone="mint" icon={<CoinsDoodle />} label="Available in wallet" value={<AnimatedNumber value={balance} format={cents} />} hint="Ready to use for your rewards." />
+        <PlayStat layout="stack" tone="lavender" icon={<StarDoodle />} label="Total earned" value={<AnimatedNumber value={earned} format={cents} />} hint="From your habit progress." />
+        <PlayStat layout="stack" tone="peach" icon={<WalletIcon strokeWidth={1.75} />} label="Recorded spending" value={<AnimatedNumber value={spent} format={cents} />} hint="On rewards you chose." />
       </div>
       <p className="flex items-center gap-3 rounded-2xl bg-lavender px-4 py-3 text-sm text-lavender-ink">
         <Info className="size-5 shrink-0" aria-hidden="true" />Pronark tracks rewards you set aside; it does not move money.
@@ -150,14 +151,3 @@ function PurchaseForm({ purchase, today, balance, busy, error, onClose, onSave, 
   );
 }
 
-function MoneyCard({ tone, icon, label, value, hint }: { tone: 'mint' | 'lavender' | 'peach'; icon: ReactNode; label: string; value: number; hint: string }) {
-  return (
-    <div className={cn('relative flex flex-col items-center gap-1 overflow-hidden rounded-2xl px-4 pt-4 pb-5 text-center ring-1 ring-inset',
-      tone === 'mint' ? 'bg-mint text-mint-ink ring-primary/15' : tone === 'lavender' ? 'bg-lavender text-lavender-ink ring-lavender-ink/10' : 'bg-peach text-peach-ink ring-peach-ink/10')}>
-      <span className="grid size-14 place-items-center rounded-full bg-card/70 text-ink shadow-sm" aria-hidden="true">{icon}</span>
-      <p className="mt-1 text-sm font-semibold text-foreground">{label}</p>
-      <AnimatedNumber value={value} format={cents} className="text-[2rem] leading-tight font-bold tracking-tight text-foreground" />
-      <p className="text-xs opacity-85">{hint}</p>
-    </div>
-  );
-}

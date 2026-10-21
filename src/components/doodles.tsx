@@ -52,3 +52,15 @@ export function HandNote({ children, className }: { children: React.ReactNode; c
 export function MagnifierDoodle({ className }: { className?: string }) {
   return <svg viewBox="0 0 56 56" className={className} aria-hidden="true"><circle cx="24" cy="26" r="13" {...filled('var(--card)')} /><path d="M18 22c1-3 4-5 7-5" {...ink} strokeWidth={1.6} /><path d="M33 35l13 13" {...ink} strokeWidth={4} /><path d="M44 6c1 4 2 5 6 6-4 1-5 2-6 6-1-4-2-5-6-6 4-1 5-2 6-6z" {...filled('var(--doodle-gold)')} /><path d="M52 22l1 3" {...ink} /></svg>;
 }
+export function BarsDoodle({ className }: { className?: string }) {
+  return <svg viewBox="0 0 48 48" className={className} aria-hidden="true"><rect x="8" y="26" width="8" height="14" rx="2" {...filled('var(--mint-pop)')} /><rect x="20" y="18" width="8" height="22" rx="2" {...filled('var(--mint-pop)')} /><rect x="32" y="9" width="8" height="31" rx="2" {...filled('var(--mint-pop)')} /><path d="M40 4l2-3M45 9l3-1" {...ink} /></svg>;
+}
+export function CalendarCheckDoodle({ className }: { className?: string }) {
+  return <svg viewBox="0 0 48 48" className={className} aria-hidden="true"><rect x="7" y="10" width="34" height="31" rx="5" {...ink} /><path d="M7 19h34" {...ink} /><path d="M15 6v8M33 6v8" {...ink} /><path d="M13 30l3 3 5-6M27 30l3 3 5-6" {...ink} stroke="var(--mint-pop)" strokeWidth={2.6} /><path d="M42 4l2-3M46 9l2-1" {...ink} /></svg>;
+}
+export function StarDoodle({ className }: { className?: string }) {
+  return <svg viewBox="0 0 48 48" className={className} aria-hidden="true"><path d="M24 7l5 11 12 1-9 8 3 12-11-6-11 6 3-12-9-8 12-1z" {...filled('var(--card)')} /><path d="M40 6l2-3M45 11l2-1" {...ink} /></svg>;
+}
+export function TrophyDoodle({ className }: { className?: string }) {
+  return <svg viewBox="0 0 48 48" className={className} aria-hidden="true"><path d="M15 8h18v8a9 9 0 0 1-18 0z" {...filled('var(--butter-pop)')} /><path d="M15 11H9c0 6 3 9 7 9M33 11h6c0 6-3 9-7 9M24 25v8M17 40h14l-2-7H19z" {...ink} /><path d="M38 3l1 3M43 7l3-1" {...ink} /></svg>;
+}

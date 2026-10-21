@@ -1,16 +1,17 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowDown, ArrowUp, Check, ChevronRight, Flame, Info, Pencil, Plus, Wallet as WalletIcon } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, Flame, Info, Pencil, Plus, Wallet as WalletIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ActivityIcon, AnimatedNumber, EmptyState, Meter, StatTile } from '@/components/pronark';
-import { CoinsIcon, HandNote, Sparkle } from '@/components/doodles';
+import { AnimatedNumber, EmptyState, Meter, StatTile } from '@/components/pronark';
+import { BarsDoodle, CoinsDoodle, HandNote, Sparkle } from '@/components/doodles';
+import { HabitBubble, PlayStat, Pop } from '@/components/playful';
 import { cn } from '@/lib/utils';
 import { cents, periodLabels, settingFor, streakFor, type ActivityKpi, type ActivityKpiLog, type BonusProgress, type Completion, type Setting, type Task, type TaskPeriod } from '@/lib/domain';
 import { prefersReducedMotion, useSpring } from '@/lib/motion';
 import { CheckoffToggle } from '@/components/checkoff-toggle';
-import { CompanionCharacter, type CharacterStyle } from '@/components/companion-character';
+import type { CharacterStyle } from '@/components/companion-character';
 
 type HomeProps = {
   character: CharacterStyle; name: string; due: Task[]; activities: Task[]; orderedIds: string[]; periods: TaskPeriod[]; grouped: boolean; presentationReady: boolean;
@@ -24,7 +25,7 @@ type HomeProps = {
 };
 
 export function HomePage(props: HomeProps) {
-  const { character, name, due, activities, orderedIds, periods, grouped, presentationReady, settings, completions, kpis, kpiLogs, today, busy, readOnly } = props;
+  const { name, due, activities, orderedIds, periods, grouped, presentationReady, settings, completions, kpis, kpiLogs, today, busy, readOnly } = props;
   const [manage, setManage] = useState(false);
   // Optimistic checkoffs: the row responds on tap; the server confirms (or we roll back) afterwards.
   const [pending, setPending] = useState<Record<string, boolean>>({});
@@ -52,27 +53,24 @@ export function HomePage(props: HomeProps) {
 
   return (
     <div className="flex w-full max-w-6xl flex-col gap-6">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-[1fr_1fr_auto]">
-        <div className="flex items-center gap-3 rounded-2xl bg-card p-4 ring-1 ring-foreground/8">
-          <span className="grid size-11 shrink-0 place-items-center rounded-full bg-mint text-mint-ink"><CoinsIcon /></span>
-          <div className="min-w-0"><p className="text-xs text-muted-foreground">Today’s earned</p><AnimatedNumber value={props.earnedToday} format={cents} className="text-2xl font-bold tracking-tight" /></div>
-        </div>
-        <button type="button" onClick={props.onWallet} className="flex items-center gap-3 rounded-2xl bg-card p-4 text-left ring-1 ring-foreground/8 transition-[scale,background-color] duration-100 hover:bg-card/80 active:scale-[0.98]">
-          <span className="grid size-11 shrink-0 place-items-center rounded-full bg-lavender text-lavender-ink"><WalletIcon className="size-5" aria-hidden="true" /></span>
-          <div className="min-w-0"><p className="text-xs text-muted-foreground">Available in wallet</p><AnimatedNumber value={props.balance} format={cents} className="text-2xl font-bold tracking-tight" /></div>
-          <ChevronRight className="ml-auto size-4 text-muted-foreground" aria-hidden="true" />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <PlayStat className="col-span-2 sm:col-span-1" tone="mint" icon={<BarsDoodle />} label="Today’s progress" value={<>{done} of {due.length}</>}
+          hint={!due.length ? 'A rest day is a win too.' : done === 0 ? 'A fresh start is a win.' : done === due.length ? 'Every one. Wow.' : `${due.length - done} to go. You’ve got this.`} />
+        <PlayStat tone="lavender" icon={<CoinsDoodle />} label="Today’s earned" value={<AnimatedNumber value={props.earnedToday} format={cents} />} />
+        <button type="button" onClick={props.onWallet} className="rounded-3xl text-left transition-[scale] duration-100 active:scale-[0.98]" aria-label={`Available in wallet ${cents(props.balance)}. Open rewards.`}>
+          <PlayStat tone="peach" icon={<WalletIcon strokeWidth={1.75} />} label="Available in wallet" value={<AnimatedNumber value={props.balance} format={cents} />} className="h-full" />
         </button>
-        <div aria-hidden="true" className="hidden rotate-6 items-center gap-1 self-center rounded-xl bg-card px-4 py-3 shadow-md ring-1 ring-foreground/10 md:flex">
-          <HandNote className="rotate-0 text-2xl leading-6">Progress<br />pays off</HandNote><Sparkle className="size-6 text-ink" />
-        </div>
       </div>
 
       {props.intro}
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_17rem]">
-        <section className="flex flex-col gap-3 rounded-2xl bg-card p-4 ring-1 ring-foreground/8 md:p-5" aria-labelledby="checklist-title">
-          <div className="flex items-center justify-between gap-2">
-            <h2 id="checklist-title" className="text-title">Today’s habits</h2>
+        <section className="flex flex-col gap-3 rounded-3xl bg-card p-4 ring-1 ring-foreground/8 md:p-6" aria-labelledby="checklist-title">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <h2 id="checklist-title" className="text-title text-2xl font-bold md:text-3xl">Today’s habits</h2>
+              <p className="text-sm text-muted-foreground">{due.length ? `${due.length} habit${due.length === 1 ? '' : 's'} for a healthier, happier you.` : 'Nothing scheduled today.'}</p>
+            </div>
             {!readOnly && (
               <div className="flex gap-1.5">
                 <Button variant="outline" onClick={props.onAdd}><Plus data-icon="inline-start" />Add</Button>
@@ -88,7 +86,7 @@ export function HomePage(props: HomeProps) {
           ) : <p className="text-xs text-muted-foreground">Checklist organization needs the new database update.</p>}
 
           {due.length ? (
-            <div className="-mx-2 flex flex-col divide-y divide-foreground/6">
+            <div className="flex flex-col gap-2">
               {due.map((t, i) => {
                 const period = periodOf(t);
                 const header = grouped && (i === 0 || periodOf(due[i - 1]) !== period);
@@ -108,14 +106,16 @@ export function HomePage(props: HomeProps) {
         </section>
 
         {/* Companion with a handwritten speech bubble; first on phones, beside the list on wide screens. */}
-        <aside className="order-first flex items-center gap-4 rounded-2xl bg-card/70 p-4 ring-1 ring-foreground/8 lg:order-none lg:sticky lg:top-20 lg:flex-col lg:p-5" aria-label="Today at a glance">
+        <aside className="relative order-first flex items-center gap-4 overflow-hidden rounded-3xl bg-card p-4 ring-1 ring-foreground/8 lg:order-none lg:sticky lg:top-20 lg:flex-col lg:p-5" aria-label="Today at a glance">
+          <Sparkle className="absolute top-3 right-3 hidden size-7 text-ink lg:block" />
+          <Pop tone="lavender" className="absolute bottom-16 left-2 hidden size-8 -scale-x-100 lg:block" />
           <div className="flex min-w-0 flex-1 flex-col gap-3 lg:order-1 lg:w-full">
-            <p role="status" className="relative rounded-3xl rounded-bl-md bg-background px-4 py-3 ring-1 ring-foreground/10 lg:rounded-bl-3xl lg:rounded-br-md">
+            <p role="status" className="relative -rotate-1 rounded-3xl rounded-bl-md bg-background px-4 py-3 shadow-sm ring-1 ring-foreground/10 lg:mt-4 lg:mr-6 lg:rounded-bl-3xl lg:rounded-br-md">
               <HandNote className="rotate-0 text-xl leading-6">{message}</HandNote>
             </p>
             <div className="lg:order-3">
               <div className="mb-1 flex justify-between text-xs text-muted-foreground"><span>Today</span><span className="tabular">{done} of {due.length}</span></div>
-              <Meter value={done} max={Math.max(1, due.length)} label={`${done} of ${due.length} activities complete`} />
+              <Meter value={done} max={Math.max(1, due.length)} className="h-2.5" label={`${done} of ${due.length} activities complete`} />
             </div>
           </div>
         </aside>
@@ -136,7 +136,7 @@ export function HomePage(props: HomeProps) {
               const eligible = props.bonusProgress.find((p) => p.task_id === task.id)?.eligible_days ?? 0, milestone = eligible < 14 ? 14 : 28, remaining = Math.max(0, milestone - eligible);
               return (
                 <div key={task.id} className="flex items-center gap-3 rounded-xl bg-card p-3.5 ring-1 ring-foreground/10">
-                  <span className="grid size-10 shrink-0 place-items-center rounded-full bg-warning/15"><Flame className="size-5 text-warning" aria-hidden="true" /></span>
+                  <span className="grid size-10 shrink-0 place-items-center rounded-full bg-butter text-butter-ink"><Flame className="size-5" aria-hidden="true" /></span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between gap-2">
                       <strong className="truncate text-sm font-semibold">{task.title}</strong>
@@ -170,12 +170,12 @@ function TaskRow({ task, completed, setting, kpi, logged, readOnly, busy, manage
   }, [completed, sweep]);
 
   return (
-    <div className={cn('rounded-xl transition-colors duration-200', completed && 'bg-mint/40')}>
-      <div className="flex min-h-16 items-center gap-3 py-2 pr-1.5 pl-3.5">
-        <ActivityIcon title={task.title} className="hidden shrink-0 sm:block" />
+    <div className={cn('rounded-2xl transition-colors duration-200', completed ? 'bg-mint/50' : 'bg-muted/50')}>
+      <div className="flex min-h-18 items-center gap-3 py-2.5 pr-1.5 pl-2.5">
+        <HabitBubble title={task.title} className="size-11 sm:size-12" />
         <div className="min-w-0 flex-1">
           <span className="relative inline">
-            <span className={cn('text-sm font-medium transition-colors duration-200', completed && 'text-muted-foreground')}>{task.title}</span>
+            <span className={cn('text-[0.9375rem] font-semibold transition-colors duration-200', completed && 'text-muted-foreground')}>{task.title}</span>
             <span ref={strikeRef} aria-hidden="true" className="absolute top-1/2 left-0 h-px w-full origin-left bg-muted-foreground" style={{ scale: completed ? '1 1' : '0 1' }} />
           </span>
           <span className={cn('tabular block text-xs', completed ? 'text-primary dark:text-sidebar-primary' : 'text-muted-foreground')}>{cents(setting?.reward_cents ?? 0)} {completed ? 'earned' : 'reward'}</span>
