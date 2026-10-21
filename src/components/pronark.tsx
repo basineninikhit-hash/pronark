@@ -9,15 +9,12 @@ import { prefersReducedMotion, useSpring } from '@/lib/motion';
 const asset = (name: string) => import.meta.env.BASE_URL + name;
 /**
  * Pronark logo. `full` is the arch with the PRONARK wordmark; `mark` is the arch alone for
- * tight spaces. Dark mode swaps in the cream version (the gold sun stays gold).
+ * tight spaces.
  */
 export function Logo({ variant = 'full', className }: { variant?: 'full' | 'mark'; className?: string }) {
   const name = variant === 'full' ? 'pronark-logo' : 'pronark-mark';
   return (
-    <picture>
-      <source srcSet={asset(name + '-dark.png')} media="(prefers-color-scheme: dark)" />
-      <img src={asset(name + '.png')} alt="Pronark" className={cn('w-auto object-contain', className)} />
-    </picture>
+    <img src={asset(name + '.png')} alt="Pronark" className={cn('w-auto object-contain', className)} />
   );
 }
 
