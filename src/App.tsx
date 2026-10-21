@@ -241,7 +241,7 @@ export function App() {
   const gettingStarted = [
     { id: 'profile', title: 'Set up your profile', isCompleted: !!ownProfile.setup_completed_at },
     { id: 'activity', title: 'Add your first activity', isCompleted: ownTaskIds.size > 0, description: 'Pick a habit you want to build and give it a reward.', actionLabel: 'Add', onAction: () => setEditor(null) },
-    { id: 'checkoff', title: 'Check off your first activity', isCompleted: completions.some((c) => c.completed && ownTaskIds.has(c.task_id)), description: 'Tap the box next to something you did today.', actionLabel: 'Show me',
+    { id: 'checkoff', title: 'Check off your first activity', isCompleted: completions.some((c) => c.completed && ownTaskIds.has(c.task_id)), description: 'Tap “Check off” next to something you did today.', actionLabel: 'Show me',
       onAction: () => document.getElementById('checklist-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
     { id: 'goal', title: 'Set a savings goal', isCompleted: categories.some((c) => c.owner_id === own && (c.general_target_cents ?? 0) > 0) || wishes.some((w) => w.owner_id === own), description: 'Choose something you’re saving toward, like a trip or new shoes.', actionLabel: 'Open goals', onAction: () => go('Goals') },
     { id: 'number', title: 'Track a number, like steps or water', isCompleted: activityKpis.some((k) => k.owner_id === own), description: 'Turn on “Track a measurable goal” when editing an activity.', actionLabel: 'Set it up',

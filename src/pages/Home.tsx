@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowDown, ArrowUp, ChevronRight, Flame, Info, Pencil, Plus, Wallet as WalletIcon } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, ChevronRight, Flame, Info, Pencil, Plus, Wallet as WalletIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
@@ -8,6 +8,7 @@ import { ActivityIcon, AnimatedNumber, CompanionArt, EmptyState, Meter, Progress
 import { cn } from '@/lib/utils';
 import { cents, companionOptions, periodLabels, settingFor, streakFor, type ActivityKpi, type ActivityKpiLog, type BonusProgress, type Companion, type Completion, type Setting, type Task, type TaskPeriod } from '@/lib/domain';
 import { prefersReducedMotion, useSpring } from '@/lib/motion';
+import { CheckoffToggle } from '@/components/checkoff-toggle';
 
 type HomeProps = {
   companion: Companion; name: string; due: Task[]; activities: Task[]; orderedIds: string[]; periods: TaskPeriod[]; grouped: boolean; presentationReady: boolean;
@@ -35,12 +36,13 @@ export function HomePage(props: HomeProps) {
   const periodOf = (t: Task) => periods.find((p) => p.task_id === t.id)?.period ?? 'anytime';
 
   async function toggle(t: Task) {
-    if (busy || readOnly || t.id in pending) return;
+    if (readOnly || t.id in pending) return false; // other rows can save at the same time
     const next = !isDone(t);
     if (next) navigator.vibrate?.(8);
     setPending((p) => ({ ...p, [t.id]: next }));
-    await props.onToggle(t, today);
+    const ok = await props.onToggle(t, today);
     setPending((p) => { const { [t.id]: _, ...rest } = p; return rest; });
+    return ok;
   }
 
   const message = due.length && done === due.length ? 'Amazing work! Every win counts today.'
@@ -151,35 +153,25 @@ export function HomePage(props: HomeProps) {
 function TaskRow({ task, completed, setting, kpi, logged, readOnly, busy, manage, period, presentationReady, canMoveUp, canMoveDown, onToggle, onLog, onDetails, onPeriod, onMove }: {
   task: Task; completed: boolean; setting?: Setting; kpi?: ActivityKpi; logged?: ActivityKpiLog; readOnly: boolean; busy: boolean; manage: boolean;
   period: TaskPeriod['period']; presentationReady: boolean; canMoveUp: boolean; canMoveDown: boolean;
-  onToggle: () => void; onLog: () => void; onDetails: () => void; onPeriod: (p: TaskPeriod['period']) => void; onMove: (direction: number) => void;
+  onToggle: () => Promise<boolean>; onLog: () => void; onDetails: () => void; onPeriod: (p: TaskPeriod['period']) => void; onMove: (direction: number) => void;
 }) {
-  const pathRef = useRef<SVGPathElement>(null), strikeRef = useRef<HTMLSpanElement>(null);
-  const draw = useSpring(completed ? 1 : 0, (v) => { if (pathRef.current) pathRef.current.style.strokeDashoffset = String(20 * (1 - Math.min(1, Math.max(0, v)))); }, { damping: 1, response: 0.3, precision: 0.002 });
+  const strikeRef = useRef<HTMLSpanElement>(null);
   const sweep = useSpring(completed ? 1 : 0, (v) => { if (strikeRef.current) strikeRef.current.style.scale = `${Math.min(1, Math.max(0, v))} 1`; }, { damping: 1, response: 0.4, precision: 0.002 });
   useEffect(() => {
     const target = completed ? 1 : 0;
-    if (prefersReducedMotion()) { draw.set(target); sweep.set(target); } else { draw.to(target); sweep.to(target); }
-  }, [completed, draw, sweep]);
+    if (prefersReducedMotion()) sweep.set(target); else sweep.to(target);
+  }, [completed, sweep]);
 
   return (
     <div className={cn('rounded-xl bg-card ring-1 ring-foreground/10 transition-colors duration-200', completed && 'bg-primary/[0.04]')}>
-      <div className="flex min-h-16 items-center gap-3 py-2 pr-2 pl-2">
-        <button type="button" onClick={onToggle} aria-disabled={busy || readOnly} disabled={readOnly} aria-pressed={completed}
-          aria-label={(completed ? 'Mark incomplete: ' : 'Mark complete: ') + task.title}
-          className="group grid size-11 shrink-0 place-items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed">
-          <span className={cn('grid size-7 place-items-center rounded-lg border-2 transition-[background-color,border-color,scale] duration-150 group-active:scale-[0.86]',
-            completed ? 'border-primary bg-primary' : 'border-muted-foreground/40 bg-background group-hover:border-primary/60')}>
-            <svg viewBox="0 0 20 20" className="size-4" aria-hidden="true">
-              <path ref={pathRef} d="M4.5 10.5l3.5 3.5 7.5-8" fill="none" strokeWidth="2.75" strokeLinecap="round" strokeLinejoin="round" className="stroke-primary-foreground" strokeDasharray="20" strokeDashoffset={completed ? 0 : 20} />
-            </svg>
-          </span>
-        </button>
+      <div className="flex min-h-16 items-center gap-3 py-2 pr-1.5 pl-3.5">
         <ActivityIcon title={task.title} className="hidden shrink-0 sm:block" />
         <div className="min-w-0 flex-1">
           <span className="relative inline">
             <span className={cn('text-sm font-medium transition-colors duration-200', completed && 'text-muted-foreground')}>{task.title}</span>
             <span ref={strikeRef} aria-hidden="true" className="absolute top-1/2 left-0 h-px w-full origin-left bg-muted-foreground" style={{ scale: completed ? '1 1' : '0 1' }} />
           </span>
+          <span className={cn('tabular block text-xs', completed ? 'text-primary dark:text-sidebar-primary' : 'text-muted-foreground')}>{cents(setting?.reward_cents ?? 0)} {completed ? 'earned' : 'reward'}</span>
           {kpi && (
             <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
               <Meter value={logged?.value ?? 0} max={kpi.target} className="w-full sm:max-w-36" />
@@ -188,7 +180,9 @@ function TaskRow({ task, completed, setting, kpi, logged, readOnly, busy, manage
           )}
           {kpi && !readOnly && <Button variant="outline" size="sm" className="mt-1.5" onClick={onLog}>{logged ? 'Update number' : 'Log number'}</Button>}
         </div>
-        <span className={cn('tabular shrink-0 text-sm', completed ? 'text-muted-foreground line-through decoration-muted-foreground/60' : 'text-foreground/80')}>{cents(setting?.reward_cents ?? 0)}</span>
+        {readOnly
+          ? completed && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary"><Check className="size-3.5" strokeWidth={3} aria-hidden="true" />Done</span>
+          : <CheckoffToggle checked={completed} onToggle={onToggle} label={task.title} />}
         <Button variant="ghost" size="icon" className="shrink-0 rounded-full text-muted-foreground" onClick={onDetails} aria-label={'Information about ' + task.title}><Info /></Button>
       </div>
       {manage && (
