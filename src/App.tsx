@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Sheet, SheetFooter } from '@/components/sheet';
 import { Segmented } from '@/components/segmented';
 import { Logo } from '@/components/pronark';
-import { Burst, GiftBoxDoodle, PlantPotDoodle, Sparkle, SunDoodle } from '@/components/doodles';
+import { Burst, GiftBoxDoodle, MagnifierDoodle, PlantPotDoodle, Sparkle, SunDoodle } from '@/components/doodles';
 import { CompanionCharacter, companionReact, toCharacterStyle } from '@/components/companion-character';
 import { GoalsForm, KpiLogForm, TaskForm, TemplateForm } from '@/components/editors';
 import { useSlidingIndicator } from '@/components/sliding-indicator';
@@ -29,9 +29,7 @@ const WelcomePage = named(() => import('@/WelcomePage'), 'WelcomePage');
 const GuidedSetup = named(() => import('@/GuidedSetup'), 'GuidedSetup');
 const SetupTour = named(() => import('@/SetupTour'), 'SetupTour');
 const LegacySetup = named(() => import('@/pages/LegacySetup'), 'LegacySetup');
-const InsightsDashboard = named(() => import('@/InsightsDashboard'), 'InsightsDashboard');
 const MonthlyRecap = named(() => import('@/InsightsDashboard'), 'MonthlyRecap');
-const ProgressPage = named(() => import('@/ProgressPage'), 'ProgressPage');
 const ReactionSettings = named(() => import('@/ReactionSettings'), 'ReactionSettings');
 const ReminderSettings = named(() => import('@/ReminderSettings'), 'ReminderSettings');
 const GroupsPage = named(() => import('@/GroupsPage'), 'GroupsPage');
@@ -41,7 +39,7 @@ const WalletPage = named(() => import('@/pages/Wallet'), 'WalletPage');
 const ProfilePage = named(() => import('@/pages/Profile'), 'ProfilePage');
 const SettingsPage = named(() => import('@/pages/Settings'), 'SettingsPage');
 const WeeklyReportSettings = named(() => import('@/pages/Settings'), 'WeeklyReportSettings');
-const InsightsPage = named(() => import('@/pages/Insights'), 'InsightsPage');
+const InsightsHub = named(() => import('@/pages/InsightsHub'), 'InsightsHub');
 
 const navIcons: Record<View, ComponentType<LucideProps>> = { Home: House, Calendar: CalendarDays, Insights: ChartColumn, Goals: Target, Wallet: Gift, Groups: Users, Profile: UserRound, Settings: SettingsIcon };
 const navLabel = (v: View) => (v === 'Wallet' ? 'Rewards' : v);
@@ -49,7 +47,7 @@ const pageTitles: Record<View, string> = { Home: 'Your daily wins', Calendar: 'Y
 const pageSubtitles: Record<View, string> = {
   Home: 'Small steps today. Bigger tomorrows.',
   Calendar: 'See your progress, build consistency, and make it yours.',
-  Insights: 'Spot patterns, celebrate progress, and make small improvements.',
+  Insights: 'A snapshot of your month.',
   Goals: 'Use your wallet to fund the things you want. Assign funds whenever you’re ready.',
   Wallet: 'Use your earned funds for the things that motivate you.',
   Groups: 'Share your progress with people you trust.',
@@ -72,7 +70,7 @@ export function App() {
   const [onboardingProgress, setOnboardingProgress] = useState<OnboardingRow | null>(null), [onboardingReady, setOnboardingReady] = useState(false), [experiencePrefs, setExperiencePrefs] = useState<ExperienceRow[]>([]);
   const [tourOpen, setTourOpen] = useState(false), [guideHidden, setGuideHidden] = useState(false);
   const [invite, setInvite] = useState(''), [issued, setIssued] = useState(''), [pushStatus, setPushStatus] = useState('Not checked');
-  const [recapMonth, setRecapMonth] = useState<string | null>(null), [celebration, setCelebration] = useState(''), [insightsView, setInsightsView] = useState<'consistency' | 'progress'>('consistency');
+  const [recapMonth, setRecapMonth] = useState<string | null>(null), [celebration, setCelebration] = useState('');
   const today = eastDate(), month = monthStart(today), own = session?.user.id ?? '', owner = person || own, readOnly = owner !== own;
   const ownProfile = profiles.find((p) => p.user_id === own), group = memberships.find((m) => m.user_id === own);
   const ownExperience = experiencePrefs.find((p) => p.owner_id === own);
@@ -283,7 +281,7 @@ export function App() {
       <div aria-hidden="true" className="pronark-blobs" />
       <Sidebar page={page} onPage={go} />
       <div className="relative z-10 flex min-w-0 flex-1 flex-col">
-        <AppBar title={page === 'Home' ? `${greeting()}, ${(ownerProfile.display_name || 'there').split(' ')[0]}!` : pageTitles[page]} subtitle={pageSubtitles[page]} decoration={page === 'Home' ? <SunDoodle className="size-10 text-ink" /> : page === 'Wallet' ? <span className="relative text-ink"><GiftBoxDoodle className="size-14" /><Sparkle className="absolute -top-1 -left-7 size-6" /></span> : page === 'Insights' ? <PlantPotDoodle className="h-12 w-11 text-ink" /> : page === 'Calendar' ? <PlantPotDoodle className="h-14 w-12 text-ink" /> : page === 'Groups' ? <Burst className="size-8 text-ink" /> : null} accountMenu={accountMenu}
+        <AppBar title={page === 'Home' ? `${greeting()}, ${(ownerProfile.display_name || 'there').split(' ')[0]}!` : pageTitles[page]} subtitle={pageSubtitles[page]} decoration={page === 'Home' ? <SunDoodle className="size-10 text-ink" /> : page === 'Wallet' ? <span className="relative text-ink"><GiftBoxDoodle className="size-14" /><Sparkle className="absolute -top-1 -left-7 size-6" /></span> : page === 'Insights' ? <MagnifierDoodle className="size-14 text-ink" /> : page === 'Calendar' ? <PlantPotDoodle className="h-14 w-12 text-ink" /> : page === 'Groups' ? <Burst className="size-8 text-ink" /> : null} accountMenu={accountMenu}
           switcher={<Segmented label="Me or groups" value={page === 'Groups' ? 'groups' : 'me'} onChange={(v) => { setPerson(own); go(v === 'groups' ? 'Groups' : 'Home'); }}
             options={[{ value: 'me', label: 'Me' }, { value: 'groups', label: 'Groups' }]} />} />
         <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col gap-4 overflow-x-clip px-4 pt-2 pb-32 md:px-8 md:pt-2 md:pb-12">
@@ -302,12 +300,9 @@ export function App() {
             intro={!readOnly && !guideHidden && <OnboardingChecklist steps={gettingStarted} onDismiss={hideGuide} />} />}
           {page === 'Calendar' && <CalendarPage owner={owner} tasks={tasks} settings={settings} completions={completions} kpis={ownerKpis} kpiLogs={ownerKpiLogs} earnings={ownerEarnings} today={today} readOnly={readOnly} busy={busy} toggle={toggle} onLog={(task, date) => setKpiEntry({ task, date })} />}
           {page === 'Insights' && (
-            <InsightsPage view={insightsView} onView={setInsightsView}>
-              {insightsView === 'consistency'
-                ? <InsightsDashboard owner={owner} today={today} tasks={tasks} settings={settings} completions={completions} earnings={ownerEarnings} kpis={activityKpis} kpiLogs={activityKpiLogs}
-                    onOpenRecap={() => { const d = new Date(today + 'T12:00:00Z'); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - 1); setRecapMonth(d.toISOString().slice(0, 7) + '-01'); }} />
-                : <ProgressPage client={supabase} owner={owner} today={today} readOnly={readOnly} tasks={tasks} kpis={activityKpis} kpiLogs={activityKpiLogs} />}
-            </InsightsPage>
+            <InsightsHub client={supabase} owner={owner} today={today} tasks={tasks} settings={settings} completions={completions} earnings={ownerEarnings} kpis={activityKpis} kpiLogs={activityKpiLogs} readOnly={readOnly}
+              onOpenRecap={() => { const d = new Date(today + 'T12:00:00Z'); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - 1); setRecapMonth(d.toISOString().slice(0, 7) + '-01'); }}
+              onSetReminder={() => go('Settings')} onEditTask={(task) => setEditor(task)} />
           )}
           {page === 'Goals' && <GoalsPage client={supabase} owner={owner} readOnly={readOnly} balance={balance} categories={categories} wishes={wishes} allocations={allocations} itemAllocations={itemAllocations} itemAllocationReady={itemAllocationReady} busy={busy} today={today} onRun={run} />}
           {page === 'Wallet' && (

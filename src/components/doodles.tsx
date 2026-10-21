@@ -49,3 +49,6 @@ export function GiftBoxDoodle({ className }: { className?: string }) {
 export function HandNote({ children, className }: { children: React.ReactNode; className?: string }) {
   return <span className={'font-hand inline-block -rotate-3 text-xl leading-6 text-ink ' + (className ?? '')}>{children}</span>;
 }
+export function MagnifierDoodle({ className }: { className?: string }) {
+  return <svg viewBox="0 0 56 56" className={className} aria-hidden="true"><circle cx="24" cy="26" r="13" {...filled('var(--card)')} /><path d="M18 22c1-3 4-5 7-5" {...ink} strokeWidth={1.6} /><path d="M33 35l13 13" {...ink} strokeWidth={4} /><path d="M44 6c1 4 2 5 6 6-4 1-5 2-6 6-1-4-2-5-6-6 4-1 5-2 6-6z" {...filled('var(--doodle-gold)')} /><path d="M52 22l1 3" {...ink} /></svg>;
+}
