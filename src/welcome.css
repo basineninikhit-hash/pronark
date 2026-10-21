@@ -1,0 +1,46 @@
+/* Landing page look (mockup 01): lavender wash, soft color blobs, white cards, mint CTAs,
+   hand-drawn doodles and handwritten notes. Scoped to .landing so the app keeps its theme. */
+.landing {
+  --landing-bg: oklch(0.965 0.018 292);
+  --landing-card: oklch(1 0 0 / 0.86);
+  --landing-card-ring: oklch(0.5 0.05 292 / 0.12);
+  --blob-a: oklch(0.88 0.06 292 / 0.75);
+  --blob-b: oklch(0.92 0.06 160 / 0.6);
+  --mint: oklch(0.93 0.06 155);
+  --mint-strong: oklch(0.62 0.15 150);
+  --mint-ink: oklch(0.42 0.11 152);
+  --ink: oklch(0.25 0.02 280);
+  --doodle-gold: oklch(0.87 0.15 95);
+  --doodle-mint: oklch(0.88 0.09 155);
+  --shadow: oklch(0.45 0.08 292 / 0.35);
+  background: var(--landing-bg);
+  color: var(--foreground);
+}
+.dark .landing {
+  --landing-bg: oklch(0.19 0.025 292);
+  --landing-card: oklch(0.25 0.025 292 / 0.9);
+  --landing-card-ring: oklch(1 0 0 / 0.08);
+  --blob-a: oklch(0.32 0.08 292 / 0.6);
+  --blob-b: oklch(0.32 0.07 160 / 0.4);
+  --mint: oklch(0.32 0.06 155);
+  --mint-strong: oklch(0.66 0.15 150);
+  --mint-ink: oklch(0.85 0.1 155);
+  --ink: oklch(0.92 0.02 292);
+  --doodle-gold: oklch(0.8 0.14 90);
+  --doodle-mint: oklch(0.55 0.1 155);
+  --shadow: oklch(0 0 0 / 0.6);
+}
+.landing .glass { --glass: color-mix(in oklch, var(--landing-bg) 72%, transparent); }
+
+.landing-blobs { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.landing-blobs::before, .landing-blobs::after { content: ""; position: absolute; border-radius: 50%; filter: blur(60px); }
+.landing-blobs::before { width: 46rem; height: 34rem; right: -14rem; top: 6rem; background: var(--blob-a); }
+.landing-blobs::after { width: 36rem; height: 28rem; left: -16rem; top: 34rem; background: var(--blob-b); }
+
+.landing-card { background: var(--landing-card); box-shadow: 0 0 0 1px var(--landing-card-ring), 0 24px 60px -32px var(--shadow); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.landing-cta { background: var(--mint); color: var(--mint-ink); box-shadow: inset 0 0 0 1.5px color-mix(in oklch, var(--mint-strong) 70%, transparent); }
+.landing-cta:hover { background: color-mix(in oklch, var(--mint) 80%, var(--mint-strong)); }
+.landing-final { background: linear-gradient(135deg, var(--blob-a), var(--blob-b)); }
+.font-hand { font-family: "Caveat", "Bradley Hand", "Segoe Print", cursive; font-weight: 600; }
+
+@media (prefers-reduced-transparency: reduce) { .landing-card { background: var(--card); -webkit-backdrop-filter: none; backdrop-filter: none; } }

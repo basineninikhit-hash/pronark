@@ -1,91 +1,196 @@
-import { useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpRight, Check, Circle, Sparkles } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { AnimatedNumber, ErrorText, Meter, Logo } from '@/components/pronark';
+import { useState, type ReactNode } from 'react';
+import { ArrowRight, ArrowUp, ArrowUpRight, Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import '@fontsource/caveat/600.css';
+import './welcome.css';
+import { AnimatedNumber, ErrorText, Logo } from '@/components/pronark';
+import { cn } from '@/lib/utils';
 
 const sources = {
- spending: 'https://institute.bankofamerica.com/economic-insights/generational-spending-update.html',
- wellness: 'https://www.mckinsey.com/industries/consumer-packaged-goods/our-insights/future-of-wellness-trends',
- learning: 'https://www.deloitte.com/us/en/insights/topics/talent/2025-gen-z-millennial-survey.html',
+  spending: 'https://institute.bankofamerica.com/economic-insights/generational-spending-update.html',
+  wellness: 'https://www.mckinsey.com/industries/consumer-packaged-goods/our-insights/future-of-wellness-trends',
+  learning: 'https://www.deloitte.com/us/en/insights/topics/talent/2025-gen-z-millennial-survey.html',
 };
-const demoTasks = [{title:'Move your body',detail:'A little stronger, every day',value:2,icon:'↗'}, {title:'Make a nourishing lunch',detail:'Fuel for everything you want to do',value:1,icon:'◒'}, {title:'Read for 20 minutes',detail:'Make room for something new',value:1,icon:'▤'}];
+// Example habits for the interactive hero card (sample data; nothing is saved).
+const demoHabits = [
+  { title: 'Morning workout', cents: 50 },
+  { title: 'Read 20 minutes', cents: 25 },
+  { title: 'Drink 8 glasses of water', cents: 25 },
+  { title: 'Plan my day', cents: 25 },
+];
+const SAMPLE_WALLET = 1165;
 
-export function WelcomePage({onSignIn,error,signedIn=false}:{onSignIn:()=>void;error:string;signedIn?:boolean}) {
- const [checked,setChecked] = useState<number[]>([0]);
- const total = demoTasks.reduce((sum,t,i)=>sum+(checked.includes(i)?t.value:0),0);
- const em='not-italic text-primary';
- const kicker='text-eyebrow text-primary';
- return <div id="top" className="min-h-dvh bg-background">
-  <a href="#welcome-main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:ring-2 focus:ring-ring">Skip to content</a>
-  <header className="glass sticky top-0 z-40 pt-[env(safe-area-inset-top)] shadow-[0_1px_0_var(--border)]">
-   <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 md:px-8">
-    <a href="#top" aria-label="Pronark home"><Logo variant="mark" className="h-10"/></a>
-    <nav aria-label="Welcome navigation" className="hidden gap-5 text-sm text-muted-foreground sm:flex"><a className="hover:text-foreground" href="#how-it-works">How it works</a><a className="hover:text-foreground" href="#why-pronark">Why Pronark</a></nav>
-    <Button className="ml-auto" onClick={onSignIn}>{signedIn?'Open app':'Sign in'}<ArrowUpRight data-icon="inline-end"/></Button>
-   </div>
-  </header>
-  <main id="welcome-main">
-   <section aria-labelledby="welcome-title" className="mx-auto grid max-w-6xl items-center gap-10 px-4 pt-10 pb-16 md:grid-cols-[1.1fr_1fr] md:px-8 md:pt-16">
-    <div className="flex flex-col gap-5">
-     <p className={kicker}>Small habits. Big possibilities.</p>
-     <h1 id="welcome-title" className="text-[clamp(2.5rem,7vw,4.5rem)] leading-[1.02] font-semibold tracking-[-0.035em]">Your goals.<br/>Your wishlist.<br/><em className={em}>On the same team.</em></h1>
-     <p className="max-w-xl text-lg text-muted-foreground">There’s a lot you want to do. And a little you want to buy. What if showing up for yourself helped you work toward both?</p>
-     <p className="max-w-xl text-muted-foreground">Meet Pronark. Turn your daily routines into progress you can see—and rewards you look forward to.</p>
-     <div className="flex flex-wrap items-center gap-3"><Button size="lg" className="h-11 px-5 text-sm" onClick={onSignIn}>Start your next chapter<ArrowUpRight data-icon="inline-end"/></Button><Button size="lg" className="h-11 px-5 text-sm" variant="ghost" nativeButton={false} render={<a href="#how-it-works"/>}>Try a little win<ArrowDown data-icon="inline-end"/></Button></div>
-     <p className="text-xs text-muted-foreground">Your habits. Your money. Your reward rules.</p>
-     {error&&<ErrorText>{error}</ErrorText>}
+/* ---------- hand-drawn doodles (strokes follow the text color; gold and mint accents) ---------- */
+const ink = { fill: 'none', stroke: 'currentColor', strokeWidth: 2.2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+const filled = (color: string) => ({ ...ink, fill: color });
+function Sparkle({ className }: { className?: string }) {
+  return <svg viewBox="0 0 48 48" className={className} aria-hidden="true"><path d="M20 6c2 10 5 13 15 15-10 2-13 5-15 15-2-10-5-13-15-15 10-2 13-5 15-15z" {...filled('var(--doodle-gold)')} /><path d="M38 6l1 4M44 14l-4 1M41 38c1 3 2 4 5 5-3 1-4 2-5 5-1-3-2-4-5-5 3-1 4-2 5-5z" {...ink} /></svg>;
+}
+function Burst({ className }: { className?: string }) {
+  return <svg viewBox="0 0 40 40" className={className} aria-hidden="true"><path d="M8 10l7 6M6 22h9M10 33l6-5" {...ink} /></svg>;
+}
+function CurlyArrow({ className }: { className?: string }) {
+  return <svg viewBox="0 0 80 50" className={className} aria-hidden="true"><path d="M76 34C60 40 40 38 30 26 24 18 26 9 33 8c8-1 8 12-2 15-9 3-21-1-27-9" {...ink} /><path d="M3 4l1 11 10-3" {...ink} /></svg>;
+}
+function LoopArrow({ className }: { className?: string }) {
+  return <svg viewBox="0 0 50 70" className={className} aria-hidden="true"><path d="M8 6c26 4 38 22 30 42-3 8-10 14-18 16" {...ink} /><path d="M24 56l-6 8 9 3" {...ink} /></svg>;
+}
+function ClipboardDoodle() {
+  return <svg viewBox="0 0 64 64" className="size-14 shrink-0" aria-hidden="true"><rect x="12" y="12" width="40" height="46" rx="6" {...ink} /><rect x="22" y="7" width="20" height="10" rx="3" {...filled('var(--doodle-mint)')} /><path d="M21 37l8 8 15-17" {...ink} strokeWidth={3} /><path d="M50 4l2 4M56 10l-4 1" {...ink} /></svg>;
+}
+function CoinsDoodle() {
+  return <svg viewBox="0 0 64 64" className="size-14 shrink-0" aria-hidden="true">{[44, 35, 26].map((y, i) => { const x = i === 1 ? 36 : 30; return <g key={y}><path d={`M${x - 17} ${y}v6c0 4 8 6.5 17 6.5s17-2.5 17-6.5v-6`} {...filled('var(--doodle-gold)')} /><ellipse cx={x} cy={y} rx="17" ry="6.5" {...filled('var(--doodle-gold)')} /></g>; })}<path d="M50 8l1 5M56 14l-4 1" {...ink} /></svg>;
+}
+function GiftDoodle() {
+  return <svg viewBox="0 0 64 64" className="size-14 shrink-0" aria-hidden="true"><rect x="12" y="28" width="40" height="28" rx="3" {...ink} /><rect x="9" y="20" width="46" height="10" rx="3" {...filled('var(--doodle-mint)')} /><path d="M32 20v36M32 20c-6-9-16-9-14-2 1 4 9 3 14 2zm0 0c6-9 16-9 14-2-1 4-9 3-14 2z" {...ink} /><path d="M50 6l1 5M56 12l-4 1" {...ink} /></svg>;
+}
+function SproutDoodle({ className }: { className?: string }) {
+  return <svg viewBox="0 0 64 80" className={className} aria-hidden="true"><path d="M32 74V38" {...ink} /><path d="M32 46c-14 0-20-10-20-20 12 0 20 8 20 20zM32 40c0-14 8-24 22-24 0 14-8 24-22 24z" {...filled('var(--doodle-mint)')} /><path d="M18 74h28" {...ink} /></svg>;
+}
+const CoinsIcon = () => <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><ellipse cx="9" cy="7" rx="6" ry="2.5" /><path d="M3 7v4c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V7" /><path d="M9 13.5v4c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5v-4c0-1.4-2.7-2.5-6-2.5" /></svg>;
+
+/* ---------- interactive "Today's habits" card ---------- */
+function HabitsCard() {
+  const [checked, setChecked] = useState<number[]>([0, 2]);
+  const [offset, setOffset] = useState(0);
+  const day = new Date(); day.setDate(day.getDate() + offset);
+  const earned = demoHabits.reduce((n, h, i) => n + (checked.includes(i) ? h.cents : 0), 0);
+  const money = (n: number) => '$' + (n / 100).toFixed(2);
+  return (
+    <div className="relative">
+      <Burst className="absolute -top-6 -right-5 size-9 rotate-12 text-[var(--ink)]" />
+      <LoopArrow className="absolute -right-12 bottom-20 hidden h-16 w-11 text-[var(--ink)] lg:block" />
+      <div className="landing-card relative rounded-3xl p-5" aria-label="Example of Pronark’s daily habits, sample data">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-headline">Today’s habits</h2>
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <button type="button" aria-label="Previous day" onClick={() => setOffset(offset - 1)} className="grid size-7 place-items-center rounded-full ring-1 ring-foreground/10 transition-[scale] duration-100 active:scale-90"><ChevronLeft className="size-3.5" /></button>
+            <span className="tabular min-w-[5.5rem] text-center">{new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).format(day)}</span>
+            <button type="button" aria-label="Next day" onClick={() => setOffset(offset + 1)} className="grid size-7 place-items-center rounded-full ring-1 ring-foreground/10 transition-[scale] duration-100 active:scale-90"><ChevronRight className="size-3.5" /></button>
+          </div>
+        </div>
+        <ul className="mt-3 flex flex-col divide-y divide-foreground/5">
+          {demoHabits.map((h, i) => {
+            const on = checked.includes(i);
+            return (
+              <li key={h.title}>
+                <label className="flex cursor-pointer items-center gap-3 py-2.5 text-sm">
+                  <input type="checkbox" className="peer sr-only" checked={on} onChange={() => setChecked((c) => (c.includes(i) ? c.filter((x) => x !== i) : [...c, i]))} />
+                  <span aria-hidden="true" className={cn('grid size-5 place-items-center rounded-md border-2 transition-[background-color,border-color,scale] duration-150 peer-focus-visible:ring-2 peer-focus-visible:ring-ring/50 active:scale-90',
+                    on ? 'border-[var(--mint-strong)] bg-[var(--mint-strong)] text-white' : 'border-foreground/20')}>{on && <Check className="size-3.5" strokeWidth={3.5} />}</span>
+                  <span className="flex-1">{h.title}</span>
+                  <b className="tabular text-sm font-semibold text-[var(--mint-ink)]">+ {money(h.cents)}</b>
+                </label>
+              </li>
+            );
+          })}
+        </ul>
+        <div className="mt-3 flex items-center gap-4 rounded-2xl bg-[var(--mint)] p-4 text-[var(--mint-ink)]">
+          <span className="grid size-10 shrink-0 place-items-center rounded-full bg-white/60 dark:bg-black/20"><CoinsIcon /></span>
+          <div className="flex-1" role="status" aria-live="polite"><small className="block text-xs opacity-80">Today’s earned</small><AnimatedNumber value={earned} format={money} className="text-xl font-semibold tracking-tight" /></div>
+          <div className="h-10 w-px bg-current opacity-15" />
+          <div className="flex-1"><small className="block text-xs opacity-80">Available in wallet</small><AnimatedNumber value={SAMPLE_WALLET + earned} format={money} className="text-xl font-semibold tracking-tight" /></div>
+        </div>
+      </div>
+      <p className="mt-2 text-center text-[0.6875rem] text-muted-foreground">Try it · example data, nothing is saved</p>
     </div>
-    <div role="img" aria-label="Illustration of daily habits connecting to a weekend getaway savings goal. Example progress: 72 of 120 dollars." className="relative">
-     <div className="absolute -inset-6 -z-10 rounded-[3rem] bg-gradient-to-br from-primary/20 via-warning/10 to-transparent blur-2xl"/>
-     <div className="flex items-center gap-3 rounded-2xl bg-card p-3.5 shadow-lg ring-1 ring-foreground/10 md:-ml-8 md:w-72"><span className="grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground"><Check className="size-4" strokeWidth={3}/></span><div className="flex-1 text-sm"><strong className="block font-semibold">Showed up for myself</strong><small className="text-xs text-muted-foreground">Gym session complete</small></div><b className="tabular text-primary">+$2</b></div>
-     <div className="mt-4 overflow-hidden rounded-3xl bg-card shadow-xl ring-1 ring-foreground/10">
-      <div className="relative h-40 bg-gradient-to-b from-sky-300/60 via-amber-200/60 to-primary/40 dark:from-sky-900/60 dark:via-amber-900/40 dark:to-primary/40"><div className="absolute top-6 right-10 size-14 rounded-full bg-amber-300/90 shadow-[0_0_40px_10px] shadow-amber-300/50"/><div className="absolute inset-x-0 bottom-0 h-16 rounded-t-[50%] bg-primary/50"/><div className="absolute -right-10 bottom-0 h-20 w-2/3 rounded-t-[50%] bg-primary/70"/><span className="text-eyebrow absolute bottom-3 left-4 text-primary-foreground">Something to look forward to</span></div>
-      <div className="flex flex-col gap-2 p-5"><small className="text-eyebrow text-muted-foreground">My next experience</small><h2 className="text-title">A weekend away</h2><div className="flex items-baseline justify-between"><strong className="tabular text-2xl font-semibold">$72 <span className="text-base font-normal text-muted-foreground">/ $120</span></strong><span className="tabular text-sm font-medium text-primary">60%</span></div><Meter value={60} className="h-2"/><p className="text-xs text-muted-foreground">Built one small win at a time.</p></div>
-     </div>
-     <p className="mt-3 text-center text-xs text-muted-foreground">A glimpse of what you could build · example data</p>
+  );
+}
+
+function Feature({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
+  return (
+    <article className="landing-card flex items-center gap-4 rounded-2xl p-5">
+      <span className="text-[var(--ink)]">{icon}</span>
+      <div><h3 className="text-headline">{title}</h3><p className="mt-0.5 text-sm text-muted-foreground">{children}</p></div>
+    </article>
+  );
+}
+
+export function WelcomePage({ onSignIn, error, signedIn = false }: { onSignIn: () => void; error: string; signedIn?: boolean }) {
+  const cta = 'landing-cta inline-flex h-11 items-center gap-2 rounded-full px-5 text-sm font-semibold transition-[scale,background-color] duration-100 active:scale-[0.97]';
+  const em = 'not-italic text-[var(--mint-ink)]';
+  const kicker = 'text-eyebrow text-[var(--mint-ink)]';
+  const heading = 'text-[clamp(2rem,4.5vw,3rem)] leading-[1.05] font-bold tracking-[-0.03em]';
+  return (
+    <div id="top" className="landing relative min-h-dvh overflow-x-clip">
+      <div aria-hidden="true" className="landing-blobs" />
+      <a href="#welcome-main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:ring-2 focus:ring-ring">Skip to content</a>
+
+      <header className="glass sticky top-0 z-40 pt-[env(safe-area-inset-top)]">
+        <div className="mx-auto flex h-16 max-w-6xl items-center gap-8 px-4 md:px-8">
+          <a href="#top" aria-label="Pronark home" className="flex items-center gap-2"><Logo variant="mark" className="h-9" /><span className="text-lg font-bold tracking-tight">Pronark</span></a>
+          <nav aria-label="Welcome navigation" className="hidden gap-6 text-sm sm:flex">
+            <a className="hover:text-[var(--mint-ink)]" href="#how-it-works">How it works</a>
+            <a className="hover:text-[var(--mint-ink)]" href="#why-pronark">Why Pronark</a>
+          </nav>
+          <button type="button" onClick={onSignIn} className={cn(cta, 'ml-auto h-9 px-4')}>{signedIn ? 'Open app' : 'Get started'}<ArrowRight className="size-4" aria-hidden="true" /></button>
+        </div>
+      </header>
+
+      <main id="welcome-main" className="relative">
+        <section aria-labelledby="welcome-title" className="mx-auto grid max-w-6xl items-center gap-12 px-4 pt-12 pb-12 md:grid-cols-[1.2fr_1fr] md:px-8 md:pt-20">
+          <div className="flex flex-col gap-6">
+            <h1 id="welcome-title" className="relative text-[clamp(2.5rem,6.4vw,4.1rem)] leading-[1.03] font-bold tracking-[-0.04em]">
+              Your goals.<br />Your wishlist.<br />On the same team.
+              <Sparkle className="absolute -top-3 left-[min(68%,21rem)] size-10 text-[var(--ink)]" />
+            </h1>
+            <p className="max-w-md text-lg text-muted-foreground">Build better habits, earn from your progress, and fund the things you want, one step at a time.</p>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+              <button type="button" onClick={onSignIn} className={cta}>{signedIn ? 'Go to your daily wins' : 'Get started'}<ArrowRight className="size-4" aria-hidden="true" /></button>
+              <span className="flex items-center gap-1 text-[var(--ink)]">
+                <CurlyArrow className="h-8 w-14 -scale-x-100" />
+                <span className="font-hand -rotate-6 text-xl leading-5">Small steps<br />towards big things.</span>
+              </span>
+            </div>
+            {error && <ErrorText>{error}</ErrorText>}
+          </div>
+          <HabitsCard />
+        </section>
+
+        <section id="how-it-works" aria-label="How Pronark works" className="mx-auto grid max-w-6xl scroll-mt-20 gap-4 px-4 pb-20 md:grid-cols-3 md:px-8">
+          <Feature icon={<ClipboardDoodle />} title="Track habits">Turn your goals into daily actions.</Feature>
+          <Feature icon={<CoinsDoodle />} title="Earn progress">See your effort add up over time.</Feature>
+          <Feature icon={<GiftDoodle />} title="Fund your goals">Assign your earnings to the things you want.</Feature>
+        </section>
+
+        <section id="why-pronark" className="mx-auto grid max-w-6xl scroll-mt-20 gap-8 px-4 py-16 md:grid-cols-2 md:px-8">
+          <div><p className={kicker}>The everyday tension</p><h2 className={cn('mt-3', heading)}>A full wishlist.<br />An even fuller <em className={em}>list of goals.</em></h2></div>
+          <div className="flex flex-col gap-4 text-muted-foreground md:pt-8"><p>Get stronger. Learn something new. Take care of yourself. Save for that trip. Life in your twenties, thirties, and beyond can feel like a hundred open tabs.</p><p>Enjoying nice things and building a life you feel good about can go together. Pronark connects the routines that matter to you with a spending reward you choose.</p></div>
+        </section>
+
+        <section aria-label="Research on younger adults" className="mx-auto grid max-w-6xl gap-4 px-4 md:grid-cols-3 md:px-8">
+          {([['The spending side', 'On the rise', 'Gen Z and millennials’ spending growth outpaced older generations in February 2026 in Bank of America’s card data.', sources.spending, 'Bank of America Institute · 2026'], ['The wellness side', 'Nearly 30%', 'of US Gen Z and millennials surveyed said they prioritized wellness much more than a year earlier.', sources.wellness, 'McKinsey · 2025 survey'], ['The ambition side', '70%', 'of Gen Z respondents develop career skills at least weekly. There’s real drive behind the desire to grow.', sources.learning, 'Deloitte · 2025 global survey']] as const).map(([label, stat, body, href, source]) => (
+            <article key={label} className="landing-card flex flex-col gap-2 rounded-2xl p-5"><span className="text-eyebrow text-muted-foreground">{label}</span><strong className="text-3xl font-bold tracking-tight">{stat}</strong><p className="text-sm text-muted-foreground">{body}</p><a href={href} target="_blank" rel="noreferrer" className="mt-auto inline-flex items-center gap-1 text-xs font-medium text-[var(--mint-ink)] hover:underline">{source}<ArrowUpRight className="size-3" aria-hidden="true" /></a></article>
+          ))}
+        </section>
+        <p className="mx-auto max-w-6xl px-4 pt-3 text-xs text-muted-foreground md:px-8">Different studies, different populations, not a claim about everyone. These findings inform the idea behind Pronark; they do not measure its effectiveness.</p>
+
+        <section className="mx-auto max-w-6xl px-4 py-20 md:px-8">
+          <p className={kicker}>Your own everyday system</p>
+          <h2 className={cn('mt-3', heading)}>Make showing up <em className={em}>feel good.</em></h2>
+          <div className="mt-10 grid gap-4 md:grid-cols-3">
+            {([['1', 'Build a routine that fits.', 'Choose your habits, schedule your days, and save the little details that make your routine yours.'], ['2', 'Give consistency a reward.', 'Set dollar values within your budget. Check off your tasks and see your earnings, streaks, and weekly progress.'], ['3', 'Look forward to something.', 'Organize your wishlist, put rewards toward your savings goals, and record purchases when you choose to spend.']] as const).map(([n, title, body]) => (
+              <article key={n} className="landing-card flex flex-col gap-2 rounded-2xl p-5"><span className="grid size-8 place-items-center rounded-full bg-[var(--mint)] text-sm font-bold text-[var(--mint-ink)]">{n}</span><h3 className="text-headline mt-1">{title}</h3><p className="text-sm text-muted-foreground">{body}</p></article>
+            ))}
+          </div>
+          <div className="mt-8 flex items-center justify-center gap-3 text-[var(--ink)]"><SproutDoodle className="h-14 w-11" /><span className="font-hand -rotate-3 text-2xl">Start small. Make it yours.</span></div>
+        </section>
+
+        <section className="px-4 pb-16 md:px-8">
+          <div className="landing-final mx-auto flex max-w-6xl flex-col items-center gap-5 rounded-[2rem] px-6 py-14 text-center">
+            <Sparkle className="size-9 text-[var(--ink)]" />
+            <p className="text-eyebrow text-[var(--mint-ink)]">There’s room for all of you</p>
+            <h2 className={heading}>One habit today.<br />More to look forward to.</h2>
+            <button type="button" onClick={onSignIn} className={cta}>{signedIn ? 'Go to your daily wins' : 'Continue with Google'}<ArrowRight className="size-4" aria-hidden="true" /></button>
+            <p className="text-sm text-muted-foreground">Pronark tracks rewards from money you set aside.<br />It doesn’t pay cash or move money for you.</p>
+          </div>
+        </section>
+      </main>
+
+      <footer className="relative mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 border-t border-foreground/10 px-4 py-8 pb-[max(2rem,env(safe-area-inset-bottom))] text-sm text-muted-foreground md:px-8">
+        <a href="#top" aria-label="Pronark home"><Logo className="h-16" /></a>
+        <p>Small habits. A life that feels like you.</p>
+        <a href="#top" className="inline-flex items-center gap-1 hover:text-foreground">Back to top<ArrowUp className="size-3.5" aria-hidden="true" /></a>
+      </footer>
     </div>
-   </section>
-   <div aria-label="Move, nourish, learn, repeat, reward" className="overflow-hidden border-y bg-primary py-3 text-primary-foreground"><div className="text-eyebrow mx-auto flex max-w-6xl flex-wrap justify-center gap-x-6 gap-y-1 px-4">{['Move your body','Feed your curiosity','Make time for you','Enjoy your progress'].map((x,i)=><span key={x} className="inline-flex items-center gap-6">{i>0&&<Sparkles className="size-3" aria-hidden="true"/>}{x}</span>)}</div></div>
-   <section id="why-pronark" className="mx-auto grid max-w-6xl gap-8 px-4 py-16 md:grid-cols-2 md:px-8 md:py-24">
-    <div><p className={kicker}>The everyday tension</p><h2 className="mt-3 text-[clamp(2rem,4.5vw,3rem)] leading-[1.05] font-semibold tracking-[-0.03em]">A full wishlist.<br/>An even fuller <em className={em}>list of goals.</em></h2></div>
-    <div className="flex flex-col gap-4 text-muted-foreground md:pt-8"><p>Get stronger. Learn something new. Take care of yourself. Save for that trip. Life in your twenties, thirties, and beyond can feel like a hundred open tabs.</p><p>Enjoying nice things and building a life you feel good about can go together. Pronark connects the routines that matter to you with a spending reward you choose.</p></div>
-   </section>
-   <section aria-label="Research on younger adults" className="mx-auto grid max-w-6xl gap-3 px-4 md:grid-cols-3 md:px-8">
-    {([['The spending side','On the rise','Gen Z and millennials’ spending growth outpaced older generations in February 2026 in Bank of America’s card data.',sources.spending,'Bank of America Institute · 2026'],['The wellness side','Nearly 30%','of US Gen Z and millennials surveyed said they prioritized wellness much more than a year earlier.',sources.wellness,'McKinsey · 2025 survey'],['The ambition side','70%','of Gen Z respondents develop career skills at least weekly. There’s real drive behind the desire to grow.',sources.learning,'Deloitte · 2025 global survey']] as const).map(([label,stat,body,href,source])=><article key={label} className="flex flex-col gap-2 rounded-2xl bg-card p-5 ring-1 ring-foreground/10"><span className="text-eyebrow text-muted-foreground">{label}</span><strong className="text-3xl font-semibold tracking-tight">{stat}</strong><p className="text-sm text-muted-foreground">{body}</p><a href={href} target="_blank" rel="noreferrer" className="mt-auto inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">{source}<ArrowUpRight className="size-3" aria-hidden="true"/></a></article>)}
-   </section>
-   <p className="mx-auto max-w-6xl px-4 pt-3 text-xs text-muted-foreground md:px-8">Different studies, different populations—not a claim about everyone. These findings inform the idea behind Pronark; they do not measure its effectiveness.</p>
-   <section id="how-it-works" className="mt-16 bg-muted/40 py-16 md:mt-24 md:py-24">
-    <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 md:grid-cols-2 md:px-8">
-     <div className="flex flex-col gap-4"><p className={kicker}>A small shift</p><h2 className="text-[clamp(2rem,4.5vw,3rem)] leading-[1.05] font-semibold tracking-[-0.03em]">Turn “I want to”<br/>into <em className={em}>“I did.”</em></h2><p className="text-muted-foreground">Feeling stronger or mastering a skill takes time. A checked box and a small reward make today’s effort visible while you work toward the bigger change.</p><p className="text-muted-foreground">Give each routine a reward. Complete it. Watch your progress add up toward something you love.</p><p className="text-xs text-muted-foreground">Interactive example only. Nothing here changes your account.</p></div>
-     <div id="demo-checklist" className="flex flex-col gap-4 rounded-3xl bg-card p-5 shadow-xl ring-1 ring-foreground/10 md:p-6">
-      <div className="flex items-start justify-between gap-3"><div><small className="text-eyebrow text-muted-foreground">Your daily wins</small><h3 className="text-title">A little better today.</h3></div><span className="text-eyebrow rounded-full bg-warning/15 px-2.5 py-1 text-warning-foreground">Try it out</span></div>
-      <div role="status" aria-live="polite" aria-atomic="true" className="flex items-center justify-between rounded-2xl bg-primary/8 p-4 ring-1 ring-primary/15"><div><span className="text-xs text-muted-foreground">Today’s reward</span><AnimatedNumber value={total*100} format={n=>'$'+(n/100).toFixed(2)} className="block text-3xl font-semibold tracking-tight"/></div><small className="text-xs text-muted-foreground">{checked.length} of 3 little wins complete</small></div>
-      <div className="flex flex-col gap-2">{demoTasks.map((task,i)=>{const on=checked.includes(i);return <label key={task.title} className={'flex cursor-pointer items-center gap-3 rounded-xl p-3 ring-1 transition-[background-color,scale] duration-150 active:scale-[0.98] '+(on?'bg-primary/5 ring-primary/30':'ring-foreground/10 hover:bg-muted/40')}><input type="checkbox" className="sr-only" checked={on} onChange={()=>setChecked(old=>old.includes(i)?old.filter(x=>x!==i):[...old,i])}/><span aria-hidden="true" className={'grid size-7 shrink-0 place-items-center rounded-lg border-2 transition-colors duration-150 '+(on?'border-primary bg-primary text-primary-foreground':'border-muted-foreground/40')}>{on&&<Check className="size-4" strokeWidth={3}/>}</span><span className="min-w-0 flex-1"><strong className={'block text-sm font-medium '+(on?'text-muted-foreground line-through':'')}>{task.title}</strong><small className="text-xs text-muted-foreground">{task.detail}</small></span><b className="tabular text-sm text-primary">+${task.value}</b></label>})}</div>
-      <p className="text-sm text-muted-foreground">{checked.length===3?'Three little wins. That’s a day worth celebrating.':'Small actions. A reward you can see.'}</p>
-     </div>
-    </div>
-   </section>
-   <section className="mx-auto max-w-6xl px-4 py-16 md:px-8 md:py-24">
-    <p className={kicker}>Your own everyday system</p><h2 className="mt-3 text-[clamp(2rem,4.5vw,3rem)] leading-[1.05] font-semibold tracking-[-0.03em]">Make showing up <em className={em}>feel good.</em></h2>
-    <div className="mt-10 grid gap-4 md:grid-cols-3">
-     <article className="flex flex-col gap-3 rounded-2xl bg-card p-5 ring-1 ring-foreground/10"><div aria-hidden="true" className="flex flex-col gap-1.5 rounded-xl bg-muted/50 p-3 text-sm">{[['Morning walk',true],['Read a chapter',true],['Wind down',false]].map(([l,d])=><span key={String(l)} className="flex items-center gap-2">{d?<Check className="size-4 text-primary"/>:<Circle className="size-4 text-muted-foreground"/>}{l}</span>)}</div><h3 className="text-headline">Build a routine that fits.</h3><p className="text-sm text-muted-foreground">Choose your habits, schedule your days, and save the little details that make your routine yours.</p></article>
-     <article className="flex flex-col gap-3 rounded-2xl bg-card p-5 ring-1 ring-foreground/10"><div aria-hidden="true" className="flex flex-col gap-2 rounded-xl bg-muted/50 p-3"><div className="flex gap-1">{[1,2,3,4,5,6,7].map(n=><i key={n} className="grid size-7 place-items-center rounded-md bg-primary text-primary-foreground"><Check className="size-3.5" strokeWidth={3}/></i>)}</div><strong className="text-sm">Keep your promise to you.</strong></div><h3 className="text-headline">Give consistency a reward.</h3><p className="text-sm text-muted-foreground">Set dollar values within your budget. Check off your tasks and see your earnings, streaks, and weekly progress.</p></article>
-     <article className="flex flex-col gap-3 rounded-2xl bg-card p-5 ring-1 ring-foreground/10"><div aria-hidden="true" className="flex flex-wrap gap-1.5 rounded-xl bg-muted/50 p-3 text-sm">{['Travel','Style','Experiences'].map(x=><span key={x} className="rounded-full bg-background px-2.5 py-1 ring-1 ring-foreground/10">{x}</span>)}</div><h3 className="text-headline">Look forward to something.</h3><p className="text-sm text-muted-foreground">Organize your wishlist, put rewards toward your savings goals, and record purchases when you choose to spend.</p></article>
-    </div>
-   </section>
-   <section className="mx-auto flex max-w-3xl flex-col items-center gap-4 px-4 py-12 text-center">
-    <Sparkles className="size-6 text-warning" aria-hidden="true"/>
-    <p className="text-lg text-muted-foreground">The healthier you. The curious you.<br/>The you who loves a little treat.</p>
-    <h2 className="text-[clamp(2rem,4.5vw,3rem)] leading-[1.05] font-semibold tracking-[-0.03em]">There’s room for <em className={em}>all of you.</em></h2>
-    <p className="text-sm text-muted-foreground">The long-term benefits are still the point.<br/>A little joy along the way can be part of the plan.</p>
-   </section>
-   <section className="px-4 pb-16 md:px-8"><div className="mx-auto flex max-w-6xl flex-col items-center gap-5 rounded-3xl bg-primary px-6 py-14 text-center text-primary-foreground">
-    <p className="text-eyebrow text-primary-foreground/80">Your next chapter starts small</p>
-    <h2 className="text-[clamp(2rem,4.5vw,3rem)] leading-[1.05] font-semibold tracking-[-0.03em]">One habit today.<br/>More to look forward to.</h2>
-    <Button size="lg" className="h-11 px-5 text-sm" variant="secondary" onClick={onSignIn}>{signedIn?'Go to your daily wins':'Continue with Google'}<ArrowUpRight data-icon="inline-end"/></Button>
-    <p className="text-sm text-primary-foreground/80">Pronark tracks rewards from money you set aside.<br/>It doesn’t pay cash or move money for you.</p>
-   </div></section>
-  </main>
-  <footer className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 border-t px-4 py-8 pb-[max(2rem,env(safe-area-inset-bottom))] text-sm text-muted-foreground md:px-8"><a href="#top" aria-label="Pronark home"><Logo className="h-16"/></a><p>Small habits. A life that feels like you.</p><a href="#top" className="inline-flex items-center gap-1 hover:text-foreground">Back to top<ArrowUp className="size-3.5" aria-hidden="true"/></a></footer>
- </div>;
+  );
 }
