@@ -21,7 +21,7 @@ const number=(n:number)=>new Intl.NumberFormat('en-US',{maximumFractionDigits:3}
 const shortDate=(s:string)=>new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',timeZone:'UTC'}).format(new Date(s+'T12:00:00Z'));
 const rangeStart=(today:string,range:'week'|'month'|'90 days')=>{if(range==='month')return today.slice(0,7)+'-01';const d=new Date(today+'T12:00:00Z');d.setUTCDate(d.getUTCDate()-(range==='week'?(d.getUTCDay()+6)%7:89));return d.toISOString().slice(0,10)};
 
-export function ProgressPage({client,owner,today,readOnly,tasks,kpis,kpiLogs}:{client:SupabaseClient;owner:string;today:string;readOnly:boolean;tasks:Activity[];kpis:ActivityKpi[];kpiLogs:ActivityLog[]}){
+export function ProgressPage({client,owner,today,readOnly,tasks,kpis,kpiLogs,privateOnly=false}:{privateOnly?:boolean;client:SupabaseClient;owner:string;today:string;readOnly:boolean;tasks:Activity[];kpis:ActivityKpi[];kpiLogs:ActivityLog[]}){
   const [metrics,setMetrics]=useState<Metric[]>([]),[logs,setLogs]=useState<MetricLog[]>([]),[ready,setReady]=useState(false),[error,setError]=useState('');
   const [newOpen,setNewOpen]=useState(false),[editId,setEditId]=useState<string|null>(null),[name,setName]=useState(''),[unit,setUnit]=useState(''),[aggregation,setAggregation]=useState<Metric['aggregation']>('latest'),[target,setTarget]=useState('');
   const [selected,setSelected]=useState<string|null>(null),[value,setValue]=useState(''),[date,setDate]=useState(today),[busy,setBusy]=useState(false);
@@ -42,6 +42,7 @@ export function ProgressPage({client,owner,today,readOnly,tasks,kpis,kpiLogs}:{c
   const maxValue=Math.max(Number(chosen?.target??0),...chosenLogs.map(l=>Number(l.value)),1);
   const selectedMetric=active.find(m=>m.id===selected);
   return <div className="flex flex-col gap-5">
+    {!privateOnly&&<>
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div><div className="text-eyebrow text-muted-foreground">Your numbers</div><h2 className="text-title mt-1">Your progress</h2><p className="mt-1 max-w-xl text-sm text-muted-foreground">See the distance you’ve covered, one measured step at a time. These numbers are separate from checklist consistency.</p></div>
       <div className="flex flex-col items-start gap-1 sm:items-end"><Segmented label="Progress time range" value={range} onChange={setRange} options={(['week','month','90 days'] as const).map(r=>({value:r,label:r==='90 days'?'90 days':r[0].toUpperCase()+r.slice(1)}))}/><p className="tabular text-xs text-muted-foreground">{shortDate(from)} – {shortDate(today)}</p></div>
@@ -62,6 +63,7 @@ export function ProgressPage({client,owner,today,readOnly,tasks,kpis,kpiLogs}:{c
         {chosenLogs.length?<><div className="flex h-48 items-end gap-1.5 overflow-x-auto border-b pb-1" role="img" aria-label={chosenLogs.map(l=>`${shortDate(l.local_date)}: ${number(Number(l.value))} ${chosen.unit}`).join('; ')}>{chosenLogs.map(l=><div key={l.local_date} className="flex h-full min-w-9 flex-1 flex-col items-center justify-end gap-1" title={`${shortDate(l.local_date)} · ${number(Number(l.value))} ${chosen.unit}`}><span className="tabular text-[0.625rem] text-muted-foreground">{number(Number(l.value))}</span><div className="flex w-full flex-1 items-end justify-center"><i className={'w-full max-w-7 rounded-t-md transition-[height] duration-500 ease-out '+(Number(l.value)>=Number(chosen.target)?'bg-primary':'bg-primary/35')} style={{height:Math.max(3,Number(l.value)/maxValue*100)+'%'}}/></div><small className="text-[0.625rem] whitespace-nowrap text-muted-foreground">{shortDate(l.local_date)}</small></div>)}</div><p className="text-xs text-muted-foreground">Solid bars met your {number(Number(chosen.target))} {chosen.unit} target. Unlogged days are not shown as zero.</p></>:<EmptyState>No numbers logged for this activity in this time range. Try a wider range or log a value from your checklist.</EmptyState>}
       </>:<EmptyState>Add a measurable KPI while editing an activity to see its progress here.</EmptyState>}
     </CardContent></Card>
+    </>}
     {!readOnly&&<Card><CardContent className="flex flex-col gap-4">
       <SectionHeading title={<span className="inline-flex items-center gap-2"><Lock className="size-4" aria-hidden="true"/>Other measurements</span>} description="For things like weight or calories that are not checklist activities. These values are private, excluded from Google Sheets, and never earn rewards." action={<Button disabled={!ready||!!error} onClick={()=>{setEditId(null);setName('');setUnit('');setAggregation('latest');setTarget('');setNewOpen(true)}}><Plus data-icon="inline-start"/>Add</Button>}/>
       {error&&<Alert variant="info"><AlertDescription>{error}</AlertDescription></Alert>}

@@ -338,7 +338,7 @@ export function App() {
           {page === 'Insights' && (
             <InsightsHub client={supabase} owner={owner} today={today} tasks={tasks} settings={settings} completions={completions} earnings={ownerEarnings} kpis={activityKpis} kpiLogs={activityKpiLogs} readOnly={readOnly}
               onOpenRecap={() => { const d = new Date(today + 'T12:00:00Z'); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - 1); setRecapMonth(d.toISOString().slice(0, 7) + '-01'); }}
-              onSetReminder={() => go('Settings')} onEditTask={(task) => setEditor(task)} />
+              onSetReminder={() => go('Settings')} onEditTask={(task) => setEditor(task)} onLog={(task, date) => setKpiEntry({ task, date })} />
           )}
           {page === 'Goals' && <GoalsPage client={supabase} owner={owner} readOnly={readOnly} balance={balance} categories={categories} wishes={wishes} allocations={allocations} itemAllocations={itemAllocations} itemAllocationReady={itemAllocationReady} busy={busy} today={today} onRun={run} />}
           {page === 'Wallet' && (

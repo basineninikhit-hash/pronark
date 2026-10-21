@@ -14,14 +14,15 @@ import { INSIGHT_UNLOCK_DAYS, addDays, findInsights, lower, monthRecords, short,
 import { Meter } from '@/components/pronark';
 import { InsightsDashboard } from '@/InsightsDashboard';
 import { ProgressPage } from '@/ProgressPage';
+import { NumbersView } from '@/pages/NumbersView';
 
 /* ---------- screens ---------- */
 
 type View = { name: 'overview' } | { name: 'all' } | { name: 'insight'; id: string } | { name: 'trend' } | { name: 'numbers' } | { name: 'history' };
 
-export function InsightsHub({ client, owner, today, tasks, settings, completions, earnings, kpis, kpiLogs, readOnly, onOpenRecap, onSetReminder, onEditTask }: {
+export function InsightsHub({ client, owner, today, tasks, settings, completions, earnings, kpis, kpiLogs, readOnly, onOpenRecap, onSetReminder, onEditTask, onLog }: {
   client: SupabaseClient; owner: string; today: string; tasks: Task[]; settings: Setting[]; completions: Completion[]; earnings: Earning[]; kpis: ActivityKpi[]; kpiLogs: ActivityKpiLog[];
-  readOnly: boolean; onOpenRecap: () => void; onSetReminder: () => void; onEditTask: (task: Task) => void;
+  readOnly: boolean; onOpenRecap: () => void; onSetReminder: () => void; onEditTask: (task: Task) => void; onLog: (task: Task, date: string) => void;
 }) {
   const [view, setView] = useState<View>({ name: 'overview' });
   const currentMonth = monthStart(today);
@@ -97,16 +98,15 @@ export function InsightsHub({ client, owner, today, tasks, settings, completions
               </section>
             ) : <LearningCard days={tracked} />}
 
-            <ThisWeek records={weekRecords} today={today} onOpen={() => open({ name: 'trend' })} />
-
             <div className="flex flex-col gap-2">
-              {unlocked && <NavRow icon={<FileText />} title="View all insights" onClick={() => open({ name: 'all' })}>Explore every win and pattern from {monthName}.</NavRow>}
-              <NavRow icon={<ChartColumn />} title="Weekly trend" onClick={() => open({ name: 'trend' })}>See your consistency over time with a simple bar chart.</NavRow>
-              <NavRow icon={<TrendingUp />} title="Your numbers" onClick={() => open({ name: 'numbers' })}>Steps, water and other measurements you track.</NavRow>
-              <NavRow icon={<CalendarDays />} title="Day-by-day history" onClick={() => open({ name: 'history' })}>Every scheduled day, filters, and a CSV download.</NavRow>
-              <NavRow icon={<Sparkles />} title="Monthly recap" onClick={onOpenRecap}>Your last month in a few highlights.</NavRow>
+              <h2 className="text-title mt-2 mb-1 text-2xl font-bold md:text-3xl">Let’s take a deeper look into how you are doing</h2>
+              {unlocked && <NavRow icon={<FileText />} title="How can I become more consistent?" onClick={() => open({ name: 'all' })}>Your wins and the patterns worth a closer look in {monthName}.</NavRow>}
+              <NavRow icon={<ChartColumn />} title="How consistent are you each week?" onClick={() => open({ name: 'trend' })}>This week day by day, and every week of the month.</NavRow>
+              <NavRow icon={<TrendingUp />} title="How are you doing against your KPIs (number goals)?" onClick={() => open({ name: 'numbers' })}>Steps, water and the other numbers you track.</NavRow>
+              <NavRow icon={<CalendarDays />} title="How are you doing day over day?" onClick={() => open({ name: 'history' })}>Every scheduled day, with filters and a CSV download.</NavRow>
             </div>
             <HowCalculated />
+            <RecapCard onOpen={onOpenRecap} />
           </>
         )}
 
@@ -114,10 +114,10 @@ export function InsightsHub({ client, owner, today, tasks, settings, completions
         {view.name === 'all' && unlocked && (
           <>
             {back}
-            <ScreenTitle title="All insights" subtitle={`A closer look at your habits in ${monthName}.`} />
+            <ScreenTitle title="How can I become more consistent?" subtitle={`What’s working in ${monthName}, and what’s worth a closer look.`} />
             <InsightList title="Wins" subtitle="What’s working well for you." items={wins} onOpen={(id) => open({ name: 'insight', id })} empty="No wins yet this month. They’ll appear as you check things off." />
             <InsightList title="Patterns to explore" subtitle="A few things to take a closer look at." items={patterns} onOpen={(id) => open({ name: 'insight', id })} empty="Nothing stands out. Nice and steady.">
-              <NavRow icon={<ChartColumn />} title="Weekly trend" onClick={() => open({ name: 'trend' })}>See your consistency over time.</NavRow>
+              <NavRow icon={<ChartColumn />} title="How consistent are you each week?" onClick={() => open({ name: 'trend' })}>See your consistency over time.</NavRow>
             </InsightList>
           </>
         )}
@@ -151,14 +151,17 @@ export function InsightsHub({ client, owner, today, tasks, settings, completions
         {view.name === 'trend' && (
           <>
             {back}
-            <ScreenTitle title="Weekly trend" subtitle={`Your consistency rate each week of ${monthName}.`} />
+            <ScreenTitle title="How consistent are you each week?" subtitle={`This week day by day, then each week of ${monthName}.`} />
+            <ThisWeek records={weekRecords} today={today} />
             <WeeklyBars weeks={weeks} />
             <HowCalculated />
           </>
         )}
 
-        {view.name === 'numbers' && (<>{back}<ProgressPage client={client} owner={owner} today={today} readOnly={readOnly} tasks={tasks} kpis={kpis} kpiLogs={kpiLogs} /></>)}
-        {view.name === 'history' && (<>{back}<InsightsDashboard owner={owner} today={today} tasks={tasks} settings={settings} completions={completions} earnings={earnings} kpis={kpis} kpiLogs={kpiLogs} onOpenRecap={onOpenRecap} /></>)}
+        {view.name === 'numbers' && (<>{back}<ScreenTitle title="How are you doing against your KPIs (number goals)?" subtitle="Are you hitting your numbers, how often you log them, and what stands out." />
+          <NumbersView owner={owner} today={today} tasks={tasks} settings={settings} kpis={kpis} kpiLogs={kpiLogs} readOnly={readOnly} onLog={onLog}
+            privateSection={<ProgressPage privateOnly client={client} owner={owner} today={today} readOnly={readOnly} tasks={tasks} kpis={kpis} kpiLogs={kpiLogs} />} /></>)}
+        {view.name === 'history' && (<>{back}<ScreenTitle title="How are you doing day over day?" subtitle="Every scheduled day, what you finished, and the patterns in between." /><InsightsDashboard owner={owner} today={today} tasks={tasks} settings={settings} completions={completions} earnings={earnings} kpis={kpis} kpiLogs={kpiLogs} onOpenRecap={onOpenRecap} /></>)}
       </div>
     </div>
   );
@@ -296,7 +299,7 @@ function LearningCard({ days }: { days: number }) {
 }
 
 /** Checkoffs per day this week (Mon–Sun); the best days glow mint. */
-function ThisWeek({ records, today, onOpen }: { records: Record_[]; today: string; onOpen: () => void }) {
+function ThisWeek({ records, today }: { records: Record_[]; today: string }) {
   const start = addDays(today, -((dayNumber(today) + 6) % 7));
   const days = Array.from({ length: 7 }, (_, i) => { const day = addDays(start, i), rows = records.filter((r) => r.day === day); return { day, done: rows.filter((r) => r.done).length, due: rows.length }; });
   const max = Math.max(1, ...days.map((d) => d.done)), best = Math.max(...days.map((d) => d.done));
@@ -304,7 +307,6 @@ function ThisWeek({ records, today, onOpen }: { records: Record_[]; today: strin
     <section className="relative flex flex-col gap-4 rounded-3xl bg-card p-4 ring-1 ring-foreground/8 md:p-6" aria-labelledby="week-title">
       <div className="flex items-start justify-between gap-3">
         <div><h2 id="week-title" className="text-title text-2xl font-bold md:text-3xl">This week</h2><p className="text-sm text-muted-foreground">Checkoffs each day. Your best days glow green.</p></div>
-        <Button variant="ghost" onClick={onOpen}>Weekly trend<ArrowRight data-icon="inline-end" /></Button>
       </div>
       <div className="flex h-44 items-end gap-2 border-b border-foreground/10 pb-0 sm:gap-4" role="img" aria-label={'Checkoffs this week: ' + days.map((d) => `${formatDate(d.day, { weekday: 'short' })} ${d.done}`).join(', ')}>
         {days.map((d) => {
@@ -320,6 +322,23 @@ function ThisWeek({ records, today, onOpen }: { records: Record_[]; today: strin
       </div>
       <div className="-mt-2 flex gap-2 sm:gap-4">{days.map((d) => <span key={d.day} className={cn('flex-1 text-center text-xs', d.day === today ? 'font-bold text-foreground' : 'text-muted-foreground')}>{formatDate(d.day, { weekday: 'short' })}</span>)}</div>
     </section>
+  );
+}
+
+/** The emphasized end-of-page invitation to last month's recap. */
+function RecapCard({ onOpen }: { onOpen: () => void }) {
+  return (
+    <button type="button" onClick={onOpen}
+      className="group relative flex items-center gap-4 overflow-hidden rounded-3xl bg-gradient-to-br from-lavender via-butter to-mint p-5 text-left ring-1 ring-inset ring-lavender-pop/30 transition-[scale] duration-100 active:scale-[0.99] md:p-6">
+      <Pop tone="butter" className="absolute top-3 right-4 size-9" />
+      <span className="grid size-16 shrink-0 place-items-center rounded-full bg-card/80 text-ink shadow-sm"><Sparkles className="size-8 text-butter-pop" aria-hidden="true" /></span>
+      <span className="min-w-0 flex-1">
+        <span className="text-eyebrow text-lavender-ink">Last month in highlights</span>
+        <strong className="block text-xl font-bold text-foreground md:text-2xl">Your Pronark Monthly Recap</strong>
+        <span className="text-sm text-foreground/75">Your consistency, your wins and the numbers you tracked, one swipe at a time.</span>
+      </span>
+      <ArrowRight className="size-6 shrink-0 text-foreground/70 transition-transform group-hover:translate-x-1" aria-hidden="true" />
+    </button>
   );
 }
 

@@ -164,22 +164,22 @@ export function MonthlyRecap({owner,name,month,today,tasks,settings,completions,
  const goTo=(i:number,velocity=0)=>{const next=Math.max(0,Math.min(slides.length-1,i));setSlide(next);const target=-next*widthRef.current;prefersReducedMotion()?offset.set(target):offset.to(target,{velocity,damping:Math.abs(velocity)>300?0.8:1,response:0.35})};
  const viewport=useRef<HTMLDivElement>(null),slideRef=useRef(slide);slideRef.current=slide;
  useLayoutEffect(()=>{const node=viewport.current;if(!node)return;const observer=new ResizeObserver(()=>{widthRef.current=node.offsetWidth;offset.set(-slideRef.current*widthRef.current)});observer.observe(node);return()=>observer.disconnect()},[offset]);
- return <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-0 backdrop-blur-sm sm:p-6" role="dialog" aria-modal="true" aria-label={'Your '+title+' recap'} onKeyDown={e=>{if(e.key==='Escape')onClose();if(e.key==='ArrowRight')goTo(slide+1);if(e.key==='ArrowLeft')goTo(slide-1)}}>
-  <div className="relative flex h-full w-full flex-col overflow-hidden bg-gradient-to-b from-primary/25 via-background to-background pt-[env(safe-area-inset-top)] sm:h-auto sm:max-h-[90dvh] sm:max-w-md sm:rounded-3xl sm:shadow-2xl sm:ring-1 sm:ring-foreground/10">
-   <div className="flex items-center justify-between px-5 pt-4"><span className="text-eyebrow text-muted-foreground">{title}</span><Button variant="ghost" size="icon" className="rounded-full" onClick={onClose} aria-label="Close recap" autoFocus><X/></Button></div>
+ return <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-0 sm:p-6" role="dialog" aria-modal="true" aria-label={'Your Pronark Monthly Recap, '+title} onKeyDown={e=>{if(e.key==='Escape')onClose();if(e.key==='ArrowRight')goTo(slide+1);if(e.key==='ArrowLeft')goTo(slide-1)}}>
+  <div className="relative isolate flex h-full w-full flex-col overflow-hidden bg-card text-foreground pt-[env(safe-area-inset-top)] sm:h-auto sm:max-h-[90dvh] sm:max-w-md sm:rounded-3xl sm:shadow-2xl sm:ring-1 sm:ring-foreground/10">
+   <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-56 bg-gradient-to-b from-lavender to-card"/>
+   <div className="flex items-start justify-between gap-3 px-5 pt-4"><div><span className="text-eyebrow text-lavender-ink">{title}</span><p className="text-xl font-bold leading-tight">Your Pronark Monthly Recap</p></div><Button variant="ghost" size="icon" className="rounded-full" onClick={onClose} aria-label="Close recap" autoFocus><X/></Button></div>
    <div ref={viewport} className="flex-1 touch-pan-y overflow-hidden select-none"
     onPointerDown={e=>{offset.stop();drag.current={id:e.pointerId,x:e.clientX,from:offset.value};tracker.current.reset();tracker.current.push(e.clientX);e.currentTarget.setPointerCapture(e.pointerId)}}
     onPointerMove={e=>{const d=drag.current;if(!d||d.id!==e.pointerId)return;const min=-(slides.length-1)*widthRef.current;let x=d.from+e.clientX-d.x;if(x>0)x=rubberband(x,widthRef.current);else if(x<min)x=min+rubberband(x-min,widthRef.current);offset.set(x);tracker.current.push(e.clientX)}}
     onPointerUp={e=>{const d=drag.current;if(!d||d.id!==e.pointerId)return;drag.current=null;const v=tracker.current.velocity();goTo(Math.round(-(offset.value+project(v))/widthRef.current),v)}}
     onPointerCancel={()=>{drag.current=null;goTo(slide)}}>
-    <div ref={trackRef} className="flex h-full">{slides.map((s,i)=><section key={i} aria-hidden={i!==slide} className="flex w-full shrink-0 flex-col items-center gap-3 px-6 pt-2 pb-4 text-center">
-     <div className="text-eyebrow text-primary">{s.eyebrow}</div>
-     <h2 className="text-title">{i===0?'Your month in moments':s.title}</h2>
-     <CompanionCharacter style={character} interactive listen={false} entrance={i===0?'hello':i===slides.length-1?'celebrate':undefined} className="my-2 h-36 w-32" label="Your smiling Pronark companion"/>
-     <strong className="tabular text-6xl font-semibold tracking-tight">{s.metric}</strong>
-     <h3 className="text-headline -mt-1 text-muted-foreground">{s.label}</h3>
-     <p className="max-w-xs text-sm">{s.body}</p>
-     <p className="max-w-xs text-sm text-muted-foreground">{summary.completed>0?`Progress looks good on you, ${first}! Keep going.`:`A new month brings new chances to begin, ${first}.`}</p>
+    <div ref={trackRef} className="flex h-full">{slides.map((s,i)=><section key={i} aria-hidden={i!==slide} className="flex w-full shrink-0 flex-col items-center gap-2 overflow-y-auto px-6 pt-2 pb-4 text-center">
+     <div className="text-eyebrow text-lavender-ink">{s.eyebrow}</div>
+     <h2 className="text-2xl font-bold text-foreground">{s.title}</h2>
+     <CompanionCharacter style={character} interactive listen={false} entrance={i===0?'hello':i===slides.length-1?'celebrate':undefined} className="my-1 h-32 w-28 shrink-0" label="Your smiling Pronark companion"/>
+     <div className={'flex w-full max-w-xs flex-col items-center rounded-3xl px-4 py-4 '+['bg-mint','bg-butter','bg-sky'][i%3]}><strong className="tabular text-6xl font-bold tracking-tight text-foreground">{s.metric}</strong><span className="text-base font-semibold text-foreground/80">{s.label}</span></div>
+     <p className="max-w-xs text-base text-foreground">{s.body}</p>
+     <p className="max-w-xs text-sm text-foreground/70">{summary.completed>0?`Progress looks good on you, ${first}! Keep going.`:`A new month brings new chances to begin, ${first}.`}</p>
     </section>)}</div>
    </div>
    <div className="flex flex-col gap-2 px-5 pt-2 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
