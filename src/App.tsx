@@ -35,7 +35,6 @@ const ProgressPage = named(() => import('@/ProgressPage'), 'ProgressPage');
 const ReactionSettings = named(() => import('@/ReactionSettings'), 'ReactionSettings');
 const ReminderSettings = named(() => import('@/ReminderSettings'), 'ReminderSettings');
 const GroupsPage = named(() => import('@/GroupsPage'), 'GroupsPage');
-const ReceiptCapture = named(() => import('@/ReceiptCapture'), 'ReceiptCapture');
 const CalendarPage = named(() => import('@/pages/Calendar'), 'CalendarPage');
 const GoalsPage = named(() => import('@/pages/Goals'), 'GoalsPage');
 const WalletPage = named(() => import('@/pages/Wallet'), 'WalletPage');
@@ -313,8 +312,7 @@ export function App() {
           {page === 'Goals' && <GoalsPage client={supabase} owner={owner} readOnly={readOnly} balance={balance} categories={categories} wishes={wishes} allocations={allocations} itemAllocations={itemAllocations} itemAllocationReady={itemAllocationReady} busy={busy} today={today} onRun={run} />}
           {page === 'Wallet' && (
             <>
-              <WalletPage readOnly={readOnly} today={today} earned={totalEarned} spent={totalSpent} balance={balance} earnings={ownerEarnings} purchases={ownerPurchases} busy={busy} error={error} onRun={run} />
-              {!readOnly && <div className="w-full max-w-6xl"><ReceiptCapture client={supabase} today={today} purchases={ownerPurchases} onSaved={refresh} /></div>}
+              <WalletPage client={supabase} onReceiptSaved={refresh} readOnly={readOnly} today={today} earned={totalEarned} spent={totalSpent} balance={balance} earnings={ownerEarnings} purchases={ownerPurchases} busy={busy} error={error} onRun={run} />
             </>
           )}
           {page === 'Profile' && (
