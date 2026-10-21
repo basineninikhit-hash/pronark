@@ -2,7 +2,8 @@ self.addEventListener('push', event => {
   const data = event.data ? event.data.json() : {};
   const title = typeof data.title === 'string' ? data.title : 'Pronark update';
   const body = typeof data.body === 'string' ? data.body : 'Open Pronark for your latest progress.';
-  const url = self.registration.scope;
+  // Open the notification's own link (relative to the app), falling back to the app root.
+  const url = typeof data.url === 'string' && data.url.startsWith('/') ? new URL(data.url.slice(1), self.registration.scope).href : self.registration.scope;
   event.waitUntil(self.registration.showNotification(title, { body, data: { url }, icon: new URL('icon-192.png', self.registration.scope).href }));
 });
 self.addEventListener('notificationclick', event => {

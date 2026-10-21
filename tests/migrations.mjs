@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 
 const db = new PGlite();
 await db.exec(`create role anon; create role authenticated; create role service_role; create schema auth; create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz); create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; create function digest(text,text) returns bytea language sql immutable as $$ select decode(md5($1),'hex') $$; create function gen_random_bytes(integer) returns bytea language sql volatile as $$ select decode(repeat('ab',$1),'hex') $$;`);
-for (const file of ['supabase/migrations/202609210001_foundation.sql','supabase/migrations/202609210002_rewards.sql','supabase/migrations/202609210003_rpc_permissions.sql','supabase/migrations/202609210004_atomic_setup.sql','supabase/migrations/202609220005_program_features.sql','supabase/migrations/202609220006_delivery_and_mirror.sql','supabase/migrations/202609220007_weekly_delivery_leases.sql','supabase/migrations/202609220008_sandbox_report_consent.sql','supabase/migrations/202609220009_invitation_pgcrypto_path.sql','supabase/migrations/202609220010_push_delivery_leases.sql','supabase/migrations/202609250011_goals_profile.sql','supabase/migrations/202609260012_rewards_overhaul.sql','supabase/migrations/202609260013_positive_balance_bonuses.sql','supabase/migrations/202610070014_activity_kpis.sql','supabase/migrations/202610080015_private_metrics.sql','supabase/migrations/202610080016_checklist_presentation.sql','supabase/migrations/202610080017_goal_target_growth.sql','supabase/migrations/202610080018_guided_onboarding.sql','supabase/migrations/202610100019_companion_reactions.sql','supabase/migrations/202610100020_custom_reminders.sql','supabase/migrations/202610100021_private_groups.sql','supabase/migrations/202610100022_together_garden.sql','supabase/migrations/202610200023_start_over.sql','supabase/migrations/202610210024_companion_character.sql']) {
+for (const file of ['supabase/migrations/202609210001_foundation.sql','supabase/migrations/202609210002_rewards.sql','supabase/migrations/202609210003_rpc_permissions.sql','supabase/migrations/202609210004_atomic_setup.sql','supabase/migrations/202609220005_program_features.sql','supabase/migrations/202609220006_delivery_and_mirror.sql','supabase/migrations/202609220007_weekly_delivery_leases.sql','supabase/migrations/202609220008_sandbox_report_consent.sql','supabase/migrations/202609220009_invitation_pgcrypto_path.sql','supabase/migrations/202609220010_push_delivery_leases.sql','supabase/migrations/202609250011_goals_profile.sql','supabase/migrations/202609260012_rewards_overhaul.sql','supabase/migrations/202609260013_positive_balance_bonuses.sql','supabase/migrations/202610070014_activity_kpis.sql','supabase/migrations/202610080015_private_metrics.sql','supabase/migrations/202610080016_checklist_presentation.sql','supabase/migrations/202610080017_goal_target_growth.sql','supabase/migrations/202610080018_guided_onboarding.sql','supabase/migrations/202610100019_companion_reactions.sql','supabase/migrations/202610100020_custom_reminders.sql','supabase/migrations/202610100021_private_groups.sql','supabase/migrations/202610100022_together_garden.sql','supabase/migrations/202610200023_start_over.sql','supabase/migrations/202610210024_companion_character.sql','supabase/migrations/202610220025_guided_routines.sql']) {
   try { await db.exec(readFileSync(file,'utf8').replace('create extension if not exists pgcrypto;','')); console.log(`PASS migration ${file}`); }
   catch (error) { console.error(`FAIL migration ${file}: ${error.message}`); process.exitCode=1; break; }
 }
@@ -288,6 +288,83 @@ if (!process.exitCode) {
  assert.equal(Number((await query('select read_group_garden($1) data',[group]))[0].data.find(p=>p.id===checkoffPlant).progress),6);
  await as(outsider);
  await reject('select read_group_garden($1)',[group]);
+ // Guided routines: builder, one run per day, Done/Skip, key-step checkoffs, undo, privacy, Sheet summary.
+ {
+ await db.exec('reset role');
+ await as(a);
+ const today=(await query('select app.local_day()::text d'))[0].d, dow=(await query('select extract(isodow from app.local_day())::int d'))[0].d, otherDay=dow%7+1;
+ const read='aaaa0001-0000-4000-8000-000000000001', mondayOnly='aaaa0001-0000-4000-8000-000000000002';
+ await query('select create_task($1,$2,$3,$4,$5)',[read,'Read 20 minutes','',50,[1,2,3,4,5,6,7]]);
+ await query('select create_task($1,$2,$3,$4,$5)',[mondayOnly,'Off-day habit','',50,[otherDay]]);
+ const routine='bbbb0001-0000-4000-8000-000000000001', c1='bbbb0002-0000-4000-8000-000000000001', c2='bbbb0002-0000-4000-8000-000000000002';
+ const s=(n)=>`bbbb0003-0000-4000-8000-00000000000${n}`;
+ const cats=[{id:c1,title:'Wake Up',steps:[{id:s(1),title:'Feet on floor',record_time:true},{id:s(2),title:'Read',habit_task_id:read,timer_seconds:600},{id:s(3),title:'Not today',weekdays:[otherDay]}]},
+   {id:c2,title:'Room Reset',steps:[{id:s(4),title:'Make bed'},{id:s(5),title:'Off-day key',habit_task_id:mondayOnly},{id:s(6),title:'Disabled',enabled:false}]}];
+ await reject('select save_routine($1,$2,$3,$4,$5,$6::jsonb,$7)',[routine,'Morning',[1,2,3,4,5,6,7],'06:10',true,JSON.stringify(cats),0]); // not a quarter hour
+ await reject('select save_routine($1,$2,$3,$4,$5,$6::jsonb,$7)',[routine,'Morning',[1,2,3,4,5,6,7],'06:15',true,JSON.stringify([{id:c1,title:'A',steps:[{id:s(1),title:'x',habit_task_id:read},{id:s(2),title:'y',habit_task_id:read}]}]),0]); // one key step per habit
+ assert.equal((await query('select save_routine($1,$2,$3,$4,$5,$6::jsonb,$7) r',[routine,'Morning',[1,2,3,4,5,6,7],'06:15',true,JSON.stringify(cats),0]))[0].r,1);
+ assert.equal((await query('select count(*)::int n from routine_steps where routine_id=$1',[routine]))[0].n,6);
+ const run=(await query('select start_routine_run($1) id',[routine]))[0].id;
+ assert.equal((await query('select start_routine_run($1) id',[routine]))[0].id,run,'starting again resumes the active run');
+ const ids=(await query('select app.routine_step_ids(snapshot)::text[] ids from routine_runs where id=$1',[run]))[0].ids;
+ assert.deepEqual(ids,[s(1),s(2),s(4),s(5)],'snapshot keeps only steps active today, in order');
+ // A builder edit during the run doesn't change it.
+ await query('select save_routine($1,$2,$3,$4,$5,$6::jsonb,$7)',[routine,'Morning',[1,2,3,4,5,6,7],'06:15',true,JSON.stringify([{id:c1,title:'Only',steps:[{id:s(9),title:'New'}]}]),1]);
+ assert.deepEqual((await query('select app.routine_step_ids(snapshot)::text[] ids from routine_runs where id=$1',[run]))[0].ids,ids);
+ await query('select save_routine($1,$2,$3,$4,$5,$6::jsonb,$7)',[routine,'Morning',[1,2,3,4,5,6,7],'06:15',true,JSON.stringify(cats),2]);
+ await reject('select resolve_routine_step($1,$2,$3)',[run,s(2),'done']); // not the current step
+ assert.equal((await query("select resolve_routine_step($1,$2,'done') o",[run,s(1)]))[0].o,'none');
+ assert.equal((await query("select resolve_routine_step($1,$2,'done') o",[run,s(1)]))[0].o,'none','retry returns the saved result');
+ await reject("select resolve_routine_step($1,$2,'skipped')",[run,s(1)]);
+ const earned=async()=>(await query('select coalesce(sum(cents),0)::int c from earnings where task_id=$1 and active',[read]))[0].c;
+ assert.equal((await query("select resolve_routine_step($1,$2,'done') o",[run,s(2)]))[0].o,'checked');
+ assert.equal((await query('select completed from completions where task_id=$1 and local_date=$2',[read,today]))[0].completed,true);
+ const rewardAfter=await earned();
+ assert.ok(rewardAfter>0,'the key step earned the normal reward');
+ assert.equal((await query("select resolve_routine_step($1,$2,'done') o",[run,s(2)]))[0].o,'checked');
+ assert.equal(await earned(),rewardAfter,'a retry never pays twice');
+ // Undo removes only the checkoff this routine created, then redo it.
+ await query('select undo_routine_step($1)',[run]);
+ assert.equal((await query('select completed from completions where task_id=$1 and local_date=$2',[read,today]))[0].completed,false);
+ assert.equal(await earned(),0);
+ assert.equal((await query("select resolve_routine_step($1,$2,'done') o",[run,s(2)]))[0].o,'checked');
+ assert.equal(await earned(),rewardAfter);
+ await query('select set_routine_run_paused($1,true)',[run]);
+ assert.ok((await query('select paused_at from routine_runs where id=$1',[run]))[0].paused_at);
+ await query('select set_routine_run_paused($1,false)',[run]);
+ assert.equal((await query("select resolve_routine_step($1,$2,'skipped') o",[run,s(4)]))[0].o,'none');
+ assert.equal((await query("select resolve_routine_step($1,$2,'done') o",[run,s(5)]))[0].o,'not_scheduled','off-schedule key step is Done without a checkoff');
+ assert.equal((await query('select count(*)::int n from completions where task_id=$1 and completed',[mondayOnly]))[0].n,0);
+ assert.equal((await query('select state from routine_runs where id=$1',[run]))[0].state,'finished');
+ await reject('select start_routine_run($1)',[routine]); // once per local day
+ // A manual checkoff is never undone by the routine.
+ const routine2='bbbb0001-0000-4000-8000-000000000002';
+ await query('select save_routine($1,$2,$3,$4,$5,$6::jsonb,$7)',[routine2,'Evening',[1,2,3,4,5,6,7],null,false,JSON.stringify([{id:'bbbb0002-0000-4000-8000-000000000003',title:'Wind down',steps:[{id:'bbbb0003-0000-4000-8000-000000000007',title:'Read again',habit_task_id:read}]}]),0]);
+ const run2=(await query('select start_routine_run($1) id',[routine2]))[0].id;
+ assert.equal((await query("select resolve_routine_step($1,$2,'done') o",[run2,'bbbb0003-0000-4000-8000-000000000007']))[0].o,'already','another routine already checked it off');
+ await query('select undo_routine_step($1)',[run2]);
+ assert.equal((await query('select completed from completions where task_id=$1 and local_date=$2',[read,today]))[0].completed,true,'undo keeps a checkoff this run did not create');
+ await query('select end_routine_run($1)',[run2]);
+ // Sheets: only the six-field summary, never step names.
+ const logged=(await query("select after_value from audit_events where entity='routine_runs' and entity_id=$1 order by (after_value->>'revision')::int desc limit 1",[run]))[0].after_value;
+ assert.deepEqual(Object.keys(logged).sort(),['done','finished','local_date','revision','routine_id','skipped','total_steps']);
+ assert.deepEqual([logged.total_steps,logged.done,logged.skipped,logged.finished],[4,3,1,true]);
+ assert.equal((await query("select count(*)::int n from audit_events where entity in ('routines','routine_categories','routine_steps','routine_step_results')"))[0].n,0);
+ assert.equal((await query("select count(*)::int n from audit_events where after_value::text like '%Feet on floor%'"))[0].n,0);
+ // Owner-only: partner and outsider can't read or act.
+ for (const other of [b, outsider]) {
+   await as(other); await db.exec('set role authenticated');
+   for (const t of ['routines','routine_categories','routine_steps','routine_runs','routine_step_results']) assert.equal((await query(`select count(*)::int n from ${t}`))[0].n,0,`${t} is owner-only`);
+   await db.exec('reset role'); await as(other);
+   await reject('select start_routine_run($1)',[routine]);
+   await reject('select archive_routine($1)',[routine]);
+ }
+ await as(a);
+ await query('select archive_routine($1)',[routine]);
+ assert.equal((await query('select count(*)::int n from routine_runs where routine_id=$1',[routine]))[0].n,1,'archiving keeps history');
+ await db.exec('reset role');
+ console.log('PASS guided routines: builder rules, snapshot, one run per day, Done/Skip/Undo, single reward, owner-only, six-field Sheet summary');
+ }
  // Start over: a owns `group` (with b) and belongs to `family` (owned by outsider).
  await db.exec('reset role');
  const bTasksBefore=(await query('select count(*)::int n from tasks where owner_id=$1',[b]))[0].n;

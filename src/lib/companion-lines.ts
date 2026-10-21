@@ -35,6 +35,8 @@ export function ambientLine(c: CompanionContext): string {
       return c.balance > 0 ? `You’ve got ${cents(c.balance).replace('.00', '')} in your wallet. Want to assign some to a goal?` : 'Pick something worth saving for. I’ll cheer when it’s funded.';
     case 'Calendar':
       return c.done ? 'Every colored square is a day you showed up.' : 'Tap any day to see how it went.';
+    case 'Routines':
+      return pick(['One step at a time. I’ll keep count.', 'You don’t have to plan it. Just do the next step.'], seed);
     case 'Groups':
       return 'Cheering is better with company.';
     case 'Profile':

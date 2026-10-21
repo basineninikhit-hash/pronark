@@ -1,7 +1,7 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { CalendarDays, ChartColumn, ChevronDown, Gift, House, LogOut, Settings as SettingsIcon, Smile, Target, UserRound, Users, type LucideProps } from 'lucide-react';
+import { CalendarDays, ChartColumn, ListChecks, ChevronDown, Gift, House, LogOut, Settings as SettingsIcon, Smile, Target, UserRound, Users, type LucideProps } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Sheet, SheetFooter } from '@/components/sheet';
 import { Segmented } from '@/components/segmented';
 import { Logo } from '@/components/pronark';
+import type { Routine, RoutineCategory, RoutineRun, RoutineStep, StepResult } from '@/lib/routines';
 import { Burst, GiftBoxDoodle, MagnifierDoodle, PlantPotDoodle, Sparkle, SunDoodle } from '@/components/doodles';
 import { CompanionCharacter, companionReact, toCharacterStyle } from '@/components/companion-character';
 import { FloatingCompanion } from '@/components/floating-companion';
@@ -43,13 +44,15 @@ const ProfilePage = named(() => import('@/pages/Profile'), 'ProfilePage');
 const SettingsPage = named(() => import('@/pages/Settings'), 'SettingsPage');
 const WeeklyReportSettings = named(() => import('@/pages/Settings'), 'WeeklyReportSettings');
 const InsightsHub = named(() => import('@/pages/InsightsHub'), 'InsightsHub');
+const RoutinesPage = named(() => import('@/pages/Routines'), 'RoutinesPage');
 
-const navIcons: Record<View, ComponentType<LucideProps>> = { Home: House, Calendar: CalendarDays, Insights: ChartColumn, Goals: Target, Wallet: Gift, Groups: Users, Profile: UserRound, Settings: SettingsIcon };
+const navIcons: Record<View, ComponentType<LucideProps>> = { Home: House, Calendar: CalendarDays, Routines: ListChecks, Insights: ChartColumn, Goals: Target, Wallet: Gift, Groups: Users, Profile: UserRound, Settings: SettingsIcon };
 const navLabel = (v: View) => (v === 'Wallet' ? 'Rewards' : v);
-const pageTitles: Record<View, string> = { Home: 'Your daily wins', Calendar: 'Your habit calendar', Insights: 'Your insights', Goals: 'My wishlist goals', Wallet: 'Your rewards', Groups: 'Your groups', Profile: 'Your profile', Settings: 'Settings' };
+const pageTitles: Record<View, string> = { Home: 'Your daily wins', Calendar: 'Your habit calendar', Routines: 'Your routines', Insights: 'Your insights', Goals: 'My wishlist goals', Wallet: 'Your rewards', Groups: 'Your groups', Profile: 'Your profile', Settings: 'Settings' };
 const pageSubtitles: Record<View, string> = {
   Home: 'Small steps today. Bigger tomorrows.',
   Calendar: 'See your progress, build consistency, and make it yours.',
+  Routines: 'One clear step at a time.',
   Insights: 'Notice the patterns behind your progress.',
   Goals: 'Use your wallet to fund the things you want. Assign funds whenever you’re ready.',
   Wallet: 'Use your earned funds for the things that motivate you.',
@@ -58,11 +61,11 @@ const pageSubtitles: Record<View, string> = {
   Settings: 'Notifications, invitations and your account.',
 };
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; };
-const sidebarViews: View[] = ['Home', 'Calendar', 'Insights', 'Goals', 'Wallet', 'Groups', 'Profile'];
-const tabViews: View[] = ['Home', 'Calendar', 'Insights', 'Goals', 'Wallet', 'Profile'];
+const sidebarViews: View[] = ['Home', 'Calendar', 'Routines', 'Insights', 'Goals', 'Wallet', 'Groups', 'Profile'];
+const tabViews: View[] = ['Home', 'Calendar', 'Routines', 'Insights', 'Goals', 'Wallet'];
 
 export function App() {
-  const [session, setSession] = useState<Session | null>(null), [ready, setReady] = useState(false), [page, setPage] = useState<View>('Home');
+  const [session, setSession] = useState<Session | null>(null), [ready, setReady] = useState(false), [page, setPage] = useState<View>(() => { const v = new URLSearchParams(location.search).get('view'); return v && ['Home', 'Calendar', 'Routines', 'Insights', 'Goals', 'Wallet', 'Groups', 'Profile', 'Settings'].includes(v) ? v as View : 'Home'; });
   const [profiles, setProfiles] = useState<Profile[]>([]), [memberships, setMemberships] = useState<Membership[]>([]), [tasks, setTasks] = useState<Task[]>([]), [settings, setSettings] = useState<Setting[]>([]), [completions, setCompletions] = useState<Completion[]>([]);
   const [activityKpis, setActivityKpis] = useState<ActivityKpi[]>([]), [activityKpiLogs, setActivityKpiLogs] = useState<ActivityKpiLog[]>([]), [kpiReady, setKpiReady] = useState(false), [earnings, setEarnings] = useState<Earning[]>([]), [purchases, setPurchases] = useState<Purchase[]>([]);
   const [categories, setCategories] = useState<Category[]>([]), [wishes, setWishes] = useState<Wish[]>([]), [allocations, setAllocations] = useState<Allocation[]>([]), [itemAllocations, setItemAllocations] = useState<ItemAllocation[]>([]), [itemAllocationReady, setItemAllocationReady] = useState(false);
@@ -71,6 +74,7 @@ export function App() {
   const [editor, setEditor] = useState<Task | null | undefined>(undefined), [details, setDetails] = useState<Task | null>(null), [templateTask, setTemplateTask] = useState<Task | null>(null), [goalsEditor, setGoalsEditor] = useState(false), [kpiEntry, setKpiEntry] = useState<{ task: Task; date: string } | null>(null);
   const [presentations, setPresentations] = useState<ChecklistPresentation[]>([]), [taskPeriods, setTaskPeriods] = useState<TaskPeriod[]>([]), [presentationReady, setPresentationReady] = useState(false);
   const [onboardingProgress, setOnboardingProgress] = useState<OnboardingRow | null>(null), [onboardingReady, setOnboardingReady] = useState(false), [experiencePrefs, setExperiencePrefs] = useState<ExperienceRow[]>([]);
+  const [routineData, setRoutineData] = useState<{ ready: boolean; routines: Routine[]; categories: RoutineCategory[]; steps: RoutineStep[]; runs: RoutineRun[]; results: StepResult[] }>({ ready: false, routines: [], categories: [], steps: [], runs: [], results: [] });
   const [tourOpen, setTourOpen] = useState(false), [guideHidden, setGuideHidden] = useState(false);
   const [invite, setInvite] = useState(''), [issued, setIssued] = useState(''), [pushStatus, setPushStatus] = useState('Not checked');
   const [recapMonth, setRecapMonth] = useState<string | null>(null), [celebration, setCelebration] = useState('');
@@ -120,6 +124,12 @@ export function App() {
     setPresentationReady(!presentationRows.error && !periodRows.error); setPresentations((presentationRows.data ?? []) as ChecklistPresentation[]); setTaskPeriods((periodRows.data ?? []) as TaskPeriod[]);
     const [onboarding, prefs] = await Promise.all([supabase.from('onboarding_progress').select('*').eq('owner_id', session.user.id).maybeSingle(), supabase.from('experience_preferences').select('*')]);
     setOnboardingReady(!onboarding.error && !prefs.error); setOnboardingProgress((onboarding.data ?? null) as OnboardingRow | null); setExperiencePrefs((prefs.data ?? []) as ExperienceRow[]);
+    // Guided routines are owner-only; recent runs are enough for the list, runner and summaries.
+    const since = (() => { const d = new Date(); d.setDate(d.getDate() - 45); return d.toISOString().slice(0, 10); })();
+    const [rt, rc, rs, rr] = await Promise.all([supabase.from('routines').select('*'), supabase.from('routine_categories').select('*'), supabase.from('routine_steps').select('*'), supabase.from('routine_runs').select('*').or(`start_date.gte.${since},state.eq.active`)]);
+    const runIds = ((rr.data ?? []) as RoutineRun[]).map((r) => r.id);
+    const res = runIds.length ? await supabase.from('routine_step_results').select('*').in('run_id', runIds) : { data: [], error: null };
+    setRoutineData({ ready: !rt.error && !rc.error && !rs.error && !rr.error && !res.error, routines: (rt.data ?? []) as Routine[], categories: (rc.data ?? []) as RoutineCategory[], steps: (rs.data ?? []) as RoutineStep[], runs: (rr.data ?? []) as RoutineRun[], results: (res.data ?? []) as StepResult[] });
     setDataReady(true);
   }
   useEffect(() => {
@@ -322,6 +332,8 @@ export function App() {
             bonusProgress={bonusProgress.filter((p) => p.owner_id === owner)} bonusProgressReady={bonusProgressReady} busy={busy} readOnly={readOnly}
             onToggle={toggle} onLog={(task, date) => setKpiEntry({ task, date })} onAdd={() => setEditor(null)} onDetails={setDetails} onWallet={() => go('Wallet')}
             intro={!readOnly && !guideHidden && <OnboardingChecklist steps={gettingStarted} onDismiss={hideGuide} />} />}
+          {page === 'Routines' && <RoutinesPage {...routineData} readOnly={readOnly} tasks={tasks.filter((t) => t.owner_id === own)} settings={settings} today={today}
+            initialRoutine={new URLSearchParams(location.search).get('routine')} onRefresh={refresh} onEnablePush={enablePush} pushStatus={pushStatus} />}
           {page === 'Calendar' && <CalendarPage owner={owner} tasks={tasks} settings={settings} completions={completions} kpis={ownerKpis} kpiLogs={ownerKpiLogs} earnings={ownerEarnings} today={today} readOnly={readOnly} busy={busy} toggle={toggle} onLog={(task, date) => setKpiEntry({ task, date })} />}
           {page === 'Insights' && (
             <InsightsHub client={supabase} owner={owner} today={today} tasks={tasks} settings={settings} completions={completions} earnings={ownerEarnings} kpis={activityKpis} kpiLogs={activityKpiLogs} readOnly={readOnly}

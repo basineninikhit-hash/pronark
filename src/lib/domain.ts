@@ -18,7 +18,7 @@ export type Template = { id: string; owner_id: string; name: string; title: stri
 export type ReportPreference = { owner_id: string; pending_email: string | null; verified_email: string | null; enabled: boolean; verification_state: string };
 export type ChecklistPresentation = { owner_id: string; ordered_ids: string[]; grouped: boolean; revision: number };
 export type TaskPeriod = { task_id: string; owner_id: string; period: 'morning' | 'afternoon' | 'evening' | 'anytime'; revision: number };
-export type View = 'Home' | 'Calendar' | 'Insights' | 'Goals' | 'Wallet' | 'Groups' | 'Profile' | 'Settings';
+export type View = 'Home' | 'Calendar' | 'Routines' | 'Insights' | 'Goals' | 'Wallet' | 'Groups' | 'Profile' | 'Settings';
 export type Companion = 'robot' | 'dog' | 'cat' | 'muse' | 'care';
 export type RunAction = (action: () => Promise<unknown>, message: string) => Promise<boolean>;
 
