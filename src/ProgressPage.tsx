@@ -9,6 +9,7 @@ import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Segmented } from '@/components/segmented';
 import { Sheet, SheetFooter } from '@/components/sheet';
+import { TimedUndoButton } from '@/components/timed-undo-button';
 import { Disclosure, EmptyState, ErrorText, FieldRow, Form, FormField, SectionHeading, StatTile } from '@/components/pronark';
 
 type Activity = {id:string;owner_id:string;title:string};
@@ -28,9 +29,9 @@ export function ProgressPage({client,owner,today,readOnly,tasks,kpis,kpiLogs}:{c
   async function load(){if(readOnly){setReady(true);return}const [a,b]=await Promise.all([client.from('private_metrics').select('*'),client.from('private_metric_logs').select('*')]);if(a.error||b.error){setError('Private measurements need the new database migration before they can be used.');setReady(true);return}setMetrics((a.data??[]) as Metric[]);setLogs((b.data??[]) as MetricLog[]);setError('');setReady(true)}
   useEffect(()=>{setReady(false);void load()},[owner,readOnly]);
   async function saveMetric(){setBusy(true);setError('');const old=metrics.find(m=>m.id===editId);const {error:failure}=await client.rpc('save_private_metric',{p_id:editId??crypto.randomUUID(),p_name:name.trim(),p_unit:unit.trim(),p_aggregation:aggregation,p_target:target?Number(target):null,p_expected_revision:old?.revision??0});if(failure)setError(failure.message);else{setNewOpen(false);setEditId(null);setName('');setUnit('');setTarget('');toast.success('Measurement saved. It does not affect rewards or checkoffs.');await load()}setBusy(false)}
-  async function archiveMetric(){const old=metrics.find(m=>m.id===editId);if(!old||!confirm('Archive this measurement? Its past logs will remain private.'))return;setBusy(true);const {error:failure}=await client.rpc('archive_private_metric',{p_id:old.id,p_expected_revision:old.revision});if(failure)setError(failure.message);else{setNewOpen(false);setEditId(null);await load()}setBusy(false)}
+  async function archiveMetric(){const old=metrics.find(m=>m.id===editId);if(!old)return;setBusy(true);const {error:failure}=await client.rpc('archive_private_metric',{p_id:old.id,p_expected_revision:old.revision});if(failure)setError(failure.message);else{setNewOpen(false);setEditId(null);await load()}setBusy(false)}
   async function saveLog(){if(!selected)return;setBusy(true);setError('');const prior=logs.find(x=>x.metric_id===selected&&x.local_date===date);const {error:failure}=await client.rpc('save_private_metric_log',{p_metric:selected,p_date:date,p_value:Number(value),p_expected_revision:prior?.revision??0});if(failure)setError(failure.message);else{setSelected(null);toast.success('Measurement saved privately.');await load()}setBusy(false)}
-  async function deleteLog(){if(!selected)return;const prior=logs.find(x=>x.metric_id===selected&&x.local_date===date);if(!prior||!confirm('Delete this logged value?'))return;setBusy(true);const {error:failure}=await client.rpc('delete_private_metric_log',{p_metric:selected,p_date:date,p_expected_revision:prior.revision});if(failure)setError(failure.message);else{setSelected(null);toast.success('Logged value deleted.');await load()}setBusy(false)}
+  async function deleteLog(){if(!selected)return;const prior=logs.find(x=>x.metric_id===selected&&x.local_date===date);if(!prior)return;setBusy(true);const {error:failure}=await client.rpc('delete_private_metric_log',{p_metric:selected,p_date:date,p_expected_revision:prior.revision});if(failure)setError(failure.message);else{setSelected(null);toast.success('Logged value deleted.');await load()}setBusy(false)}
   const active=metrics.filter(m=>!m.archived_at&&m.owner_id===owner);
   const activities=kpis.filter(k=>k.owner_id===owner&&tasks.some(t=>t.id===k.task_id));
   const from=rangeStart(today,range);
@@ -79,7 +80,7 @@ export function ProgressPage({client,owner,today,readOnly,tasks,kpis,kpiLogs}:{c
         <FormField label="Optional target"><Input inputMode="decimal" value={target} onChange={e=>setTarget(e.target.value)}/></FormField>
         <Disclosure summary="Will this change my rewards?">No. This is a private tracker only; it does not create a checklist task or earnings.</Disclosure>
         <ErrorText>{error}</ErrorText>
-        {editId&&<Button variant="destructive" className="self-start" disabled={busy} onClick={archiveMetric}>Archive measurement</Button>}
+        {editId&&<div className="flex flex-col items-start gap-1.5"><TimedUndoButton disabled={busy} label="Archive measurement" undoLabel="Keep measurement" runningLabel="Archiving…" onConfirm={archiveMetric}/><p className="text-xs text-muted-foreground">Its past logs stay private.</p></div>}
         <SheetFooter><Button variant="outline" onClick={()=>setNewOpen(false)}>Cancel</Button><Button disabled={busy||!name.trim()||!unit.trim()||!!target&&!(Number(target)>0&&Number(target)<=100000000)} onClick={saveMetric}>{editId?'Save changes':'Add measurement'}</Button></SheetFooter>
       </Form>
     </Sheet>
@@ -88,7 +89,7 @@ export function ProgressPage({client,owner,today,readOnly,tasks,kpis,kpiLogs}:{c
         <FieldRow><FormField label="Date"><Input type="date" max={today} value={date} onChange={e=>{setDate(e.target.value);setValue(logs.find(l=>l.metric_id===selected&&l.local_date===e.target.value)?.value.toString()??'')}}/></FormField>
         <FormField label={`Value (${selectedMetric?.unit??''})`}><Input type="number" min="0" step="any" inputMode="decimal" value={value} onChange={e=>setValue(e.target.value)}/></FormField></FieldRow>
         <ErrorText>{error}</ErrorText>
-        {logs.some(l=>l.metric_id===selected&&l.local_date===date)&&<Button variant="destructive" className="self-start" disabled={busy} onClick={deleteLog}>Delete this value</Button>}
+        {logs.some(l=>l.metric_id===selected&&l.local_date===date)&&<TimedUndoButton className="self-start" disabled={busy} label="Delete this value" undoLabel="Keep value" runningLabel="Deleting…" onConfirm={deleteLog}/>}
         <SheetFooter><Button variant="outline" onClick={()=>setSelected(null)}>Cancel</Button><Button disabled={busy||!date||date>today||value.trim()===''||!Number.isFinite(Number(value))||Number(value)<0||Number(value)>100000000} onClick={saveLog}>Save value</Button></SheetFooter>
       </Form>
     </Sheet>

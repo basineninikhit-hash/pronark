@@ -4,7 +4,6 @@ import { toast } from 'sonner';
 import { CalendarDays, ChartColumn, ChevronDown, Gift, House, LogOut, Settings as SettingsIcon, Smile, Target, UserRound, Users, type LucideProps } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Toaster } from '@/components/ui/sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetFooter } from '@/components/sheet';
@@ -333,7 +332,6 @@ export function App() {
         </main>
       </div>
       <TabBar page={page} onPage={go} />
-      <Toaster position="top-center" />
 
       <Sheet open={!!details} onClose={() => setDetails(null)} eyebrow="Routine details" title={details?.title} label="Activity details">
         {details && (
@@ -355,7 +353,7 @@ export function App() {
       </Sheet>
       <Sheet open={editor !== undefined} onClose={() => setEditor(undefined)} eyebrow="Your routine" title={editor ? 'Edit activity' : 'Add activity'}>
         {editor !== undefined && <TaskForm key={editor?.id ?? 'new'} task={editor} kpi={editor ? activityKpis.find((k) => k.task_id === editor.id) : undefined} kpiReady={kpiReady} setting={editorSetting} today={today} busy={busy} error={error} onClose={() => setEditor(undefined)}
-          onArchive={editor ? async () => { if (!confirm('Archive this activity after today? Its history and earnings will remain.')) return; const saved = await run(() => rpc('archive_task', { p_task: editor.id, p_expected_revision: editor.revision }), 'Activity will leave the checklist tomorrow.'); if (saved) setEditor(undefined); } : undefined}
+          onArchive={editor ? async () => { const saved = await run(() => rpc('archive_task', { p_task: editor.id, p_expected_revision: editor.revision }), 'Activity will leave the checklist tomorrow.'); if (saved) setEditor(undefined); } : undefined}
           onSave={async (title, desc, reward, days, requestId, kpiTarget, kpiUnit) => {
             const saved = await run(async () => {
               const taskId = await (editor ? rpc<string>('save_task', { p_id: editor.id, p_title: title, p_description: desc, p_reward_cents: reward, p_weekdays: days, p_expected_revision: editor.revision }) : rpc<string>('create_task', { p_id: requestId, p_title: title, p_description: desc, p_reward_cents: reward, p_weekdays: days }));

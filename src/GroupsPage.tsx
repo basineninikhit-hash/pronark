@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { TimedUndoButton } from '@/components/timed-undo-button';
 import { CheckRow, Disclosure, ErrorText, FormField, Meter, SectionHeading } from '@/components/pronark';
 import { TogetherPage } from './TogetherPage';
 
@@ -86,10 +87,10 @@ export function GroupsPage({client,owner,tasks}:{client:SupabaseClient;owner:str
    <Card><CardContent className="flex flex-col gap-3">
     <SectionHeading title="Group management"/>
     {isOwner?<>
-     <div className="flex flex-wrap gap-2"><Button disabled={busy} onClick={async()=>{setBusy(true);setError('');const result=await client.rpc('issue_group_invitation',{p_group:selected});if(result.error)setError(result.error.message);else setInviteCode(result.data as string);setBusy(false)}}>Create single-use invitation</Button><Button variant="outline" disabled={busy} onClick={()=>act(()=>client.rpc('revoke_group_invitations',{p_group:selected}),'Pending invitations revoked.')}>Revoke pending invitations</Button></div>
+     <div className="flex flex-wrap gap-2"><Button disabled={busy} onClick={async()=>{setBusy(true);setError('');const result=await client.rpc('issue_group_invitation',{p_group:selected});if(result.error)setError(result.error.message);else setInviteCode(result.data as string);setBusy(false)}}>Create single-use invitation</Button><TimedUndoButton disabled={busy} label="Revoke pending invitations" runningLabel="Revoking…" onConfirm={()=>act(()=>client.rpc('revoke_group_invitations',{p_group:selected}),'Pending invitations revoked.')}/></div>
      {inviteCode&&<p className="text-sm">Expires in 48 hours: <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs select-all">{inviteCode}</code></p>}
-     {overview.members.filter(m=>m.user_id!==owner).map(m=><div key={m.user_id} className="flex flex-wrap items-center gap-2 border-t pt-3"><span className="flex-1 text-sm font-medium">{m.name}</span><Button variant="outline" size="sm" disabled={busy} onClick={()=>{if(confirm(`Transfer ownership of ${group.name} to ${m.name}?`))act(()=>client.rpc('transfer_group_ownership',{p_group:selected,p_new_owner:m.user_id}),'Ownership transferred.')}}>Make owner</Button><Button variant="destructive" size="sm" disabled={busy} onClick={()=>{if(confirm(`Remove ${m.name} from ${group.name}?`))act(()=>client.rpc('remove_private_group_member',{p_group:selected,p_user:m.user_id}),'Member removed.')}}>Remove</Button></div>)}
-    </>:<Button variant="destructive" className="self-start" disabled={busy} onClick={()=>{if(confirm(`Leave ${group.name}?`))act(()=>client.rpc('leave_private_group',{p_group:selected}),'You left the group.')}}>Leave group</Button>}
+     {overview.members.filter(m=>m.user_id!==owner).map(m=><div key={m.user_id} className="flex flex-wrap items-center gap-2 border-t pt-3"><span className="flex-1 text-sm font-medium">{m.name}</span><TimedUndoButton size="sm" disabled={busy} label="Make owner" runningLabel="Transferring…" onConfirm={()=>act(()=>client.rpc('transfer_group_ownership',{p_group:selected,p_new_owner:m.user_id}),`${m.name} now owns ${group.name}.`)}/><TimedUndoButton size="sm" disabled={busy} label="Remove" runningLabel="Removing…" onConfirm={()=>act(()=>client.rpc('remove_private_group_member',{p_group:selected,p_user:m.user_id}),`${m.name} was removed.`)}/></div>)}
+    </>:<div className="self-start"><TimedUndoButton disabled={busy} label={`Leave ${group.name}`} undoLabel="Stay in group" runningLabel="Leaving…" onConfirm={()=>act(()=>client.rpc('leave_private_group',{p_group:selected}),'You left the group.')}/></div>}
    </CardContent></Card>
   </>}
   <ErrorText>{error}</ErrorText>

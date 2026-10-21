@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Sheet, SheetFooter } from '@/components/sheet';
+import { TimedUndoButton } from '@/components/timed-undo-button';
 import { AnimatedNumber, EmptyState, ErrorText, FieldRow, Form, FormField, SectionHeading } from '@/components/pronark';
 import { cn } from '@/lib/utils';
 import { cents, formatDate, moneyPattern, type Earning, type Purchase, type RunAction } from '@/lib/domain';
@@ -97,7 +98,7 @@ function PurchaseForm({ purchase, today, balance, busy, error, onClose, onSave, 
       <FormField label="Note (optional)"><Textarea value={note} onChange={(e) => setNote(e.target.value)} /></FormField>
       {projected < 0 && <Alert variant="warning"><AlertDescription>This would put your in-app wallet {cents(-projected)} below zero. Pronark is designed for delayed gratification: the immediate win is seeing savings grow. Normal activity rewards repay a deficit; streak bonuses pause until your balance is positive.</AlertDescription></Alert>}
       <ErrorText>{error}</ErrorText>
-      {onDelete && <Button variant="destructive" className="self-start" disabled={busy} onClick={() => confirm('Remove this purchase from spending?') && onDelete()}>Delete purchase</Button>}
+      {onDelete && <div className="flex flex-col items-start gap-1.5"><TimedUndoButton disabled={busy} label="Delete purchase" undoLabel="Keep purchase" runningLabel="Deleting…" onConfirm={onDelete} /><p className="text-xs text-muted-foreground">It’s removed from your spending, and the amount returns to your balance.</p></div>}
       <SheetFooter>
         <Button variant="outline" onClick={onClose}>Cancel</Button>
         <Button disabled={busy || !valid} onClick={() => { if (projected < 0 && !confirm('Record this purchase despite the negative wallet warning?')) return; onSave(requestId, title, Math.round(Number(amount) * 100), date, note); }}>Save purchase</Button>

@@ -193,3 +193,7 @@
 }
 :root[data-reduced-motion="true"] [data-slot="button"]:active { scale: 1 !important; }
 
+/* Timed undo buttons: linear "time remaining" bar. Hidden when motion is reduced. */
+@keyframes pronark-drain { from { scale: 1 1; } to { scale: 0 1; } }
+@media (prefers-reduced-motion: reduce) { .drain-bar { display: none; } }
+:root[data-reduced-motion="true"] .drain-bar { display: none; }

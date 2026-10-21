@@ -6,6 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { SheetFooter } from '@/components/sheet';
+import { TimedUndoButton } from '@/components/timed-undo-button';
 import { ErrorText, FieldRow, Form, FormField, WeekdayPicker } from '@/components/pronark';
 import { isFirstOfMonth, moneyPattern, type ActivityKpi, type ActivityKpiLog, type Profile, type Setting, type Task } from '@/lib/domain';
 
@@ -44,7 +45,7 @@ export function TaskForm({ task, setting, kpi, kpiReady, today, busy, error, onC
         {track && <p className="text-xs text-muted-foreground">Log your daily number on the checklist. Checkoff and rewards remain separate, so you decide when the activity is complete.</p>}
       </div>
       {error && <ErrorText>Could not save. Your draft is safe. {error}</ErrorText>}
-      {onArchive && <Button variant="destructive" className="self-start" disabled={busy} onClick={onArchive}>Archive activity after today</Button>}
+      {onArchive && <div className="flex flex-col items-start gap-1.5"><TimedUndoButton disabled={busy} label="Archive activity after today" undoLabel="Keep activity" runningLabel="Archiving…" onConfirm={onArchive} /><p className="text-xs text-muted-foreground">It leaves your checklist tomorrow. Its history and earnings stay.</p></div>}
       <SheetFooter>
         <Button variant="outline" onClick={onClose}>Cancel</Button>
         <Button disabled={busy || !valid} onClick={() => onSave(title, desc, Math.round(Number(reward) * 100), days, requestId, track ? Number(kpiTarget) : null, kpiUnit.trim())}>Save activity</Button>

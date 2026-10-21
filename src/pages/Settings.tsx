@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetFooter } from '@/components/sheet';
+import { TimedUndoButton } from '@/components/timed-undo-button';
 import { ErrorText, FormField, SectionHeading } from '@/components/pronark';
 import { isFirstOfMonth, type Profile, type ReportPreference } from '@/lib/domain';
 
@@ -88,10 +89,8 @@ function StartOverCard({ busy, error, onStartOver }: { busy: boolean; error: str
           <ErrorText>{error}</ErrorText>
           <SheetFooter>
             <Button variant="outline" onClick={close}>Cancel</Button>
-            <Button variant="destructive" className="bg-destructive text-white hover:bg-destructive/90" disabled={busy || typed !== 'DELETE'}
-              onClick={async () => { if (await onStartOver()) close(); }}>
-              {busy ? 'Deleting…' : 'Delete everything and start over'}
-            </Button>
+            <TimedUndoButton seconds={10} disabled={busy || typed !== 'DELETE'} label="Delete everything and start over" undoLabel="Cancel deletion" runningLabel="Deleting…"
+              onConfirm={async () => { if (await onStartOver()) close(); }} />
           </SheetFooter>
         </div>
       </Sheet>
