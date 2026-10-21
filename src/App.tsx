@@ -13,7 +13,7 @@ import { Burst, GiftBoxDoodle, MagnifierDoodle, PlantPotDoodle, Sparkle, SunDood
 import { CompanionCharacter, companionReact, toCharacterStyle } from '@/components/companion-character';
 import { FloatingCompanion } from '@/components/floating-companion';
 import { ambientLine, categoryOf, checkoffLine, companionSay } from '@/lib/companion-lines';
-import { findInsights, monthRecords } from '@/lib/insights';
+import { INSIGHT_UNLOCK_DAYS, LEARNING_LINE, findInsights, monthRecords, trackingDays } from '@/lib/insights';
 import { GoalsForm, KpiLogForm, TaskForm, TemplateForm } from '@/components/editors';
 import { useSlidingIndicator } from '@/components/sliding-indicator';
 import { OnboardingChecklist } from '@/components/onboarding-checklist';
@@ -80,6 +80,7 @@ export function App() {
   const characterStyle = toCharacterStyle(ownExperience?.character_style);
   const insightLine = useMemo(() => {
     if (page !== 'Insights' || !own) return undefined;
+    if (trackingDays(own, tasks, today) < INSIGHT_UNLOCK_DAYS) return LEARNING_LINE;
     const last = (() => { const d = new Date(today + 'T12:00:00Z'); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - 1); return d.toISOString().slice(0, 10); })();
     for (const [m, label] of [[last, 'last month'], [month, 'this month']] as const) {
       const top = findInsights(monthRecords(own, m, today, tasks, settings, completions), label)[0];

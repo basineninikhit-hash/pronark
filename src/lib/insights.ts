@@ -85,3 +85,12 @@ export function weeklyTrend(records: Record_[], month: string, today: string) {
   return weeks;
 }
 
+
+/** Insights unlock after three weeks of tracking, counted from the member's first activity. */
+export const INSIGHT_UNLOCK_DAYS = 21;
+export function trackingDays(owner: string, tasks: Task[], today: string) {
+  const starts = tasks.filter((t) => t.owner_id === owner).map((t) => t.start_date).sort();
+  if (!starts.length || starts[0] > today) return 0;
+  return Math.round((Date.parse(today + 'T12:00:00Z') - Date.parse(starts[0] + 'T12:00:00Z')) / 86400000) + 1;
+}
+export const LEARNING_LINE = 'We’re looking for insights in your daily consistency patterns. Check back soon!';

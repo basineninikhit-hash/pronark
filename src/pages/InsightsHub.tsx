@@ -8,7 +8,8 @@ import { ActivityIcon, Disclosure, EmptyState, ProgressRing } from '@/components
 import { cn } from '@/lib/utils';
 import { dayNumber, formatDate, isDue, monthStart, settingFor, type ActivityKpi, type ActivityKpiLog, type Completion, type Earning, type Setting, type Task } from '@/lib/domain';
 import { prefersReducedMotion, useSpring } from '@/lib/motion';
-import { findInsights, lower, monthRecords, short, weeklyTrend, type Insight, type Record_ } from '@/lib/insights';
+import { INSIGHT_UNLOCK_DAYS, findInsights, lower, monthRecords, short, trackingDays, weeklyTrend, type Insight, type Record_ } from '@/lib/insights';
+import { Meter } from '@/components/pronark';
 import { InsightsDashboard } from '@/InsightsDashboard';
 import { ProgressPage } from '@/ProgressPage';
 
@@ -45,6 +46,8 @@ export function InsightsHub({ client, owner, today, tasks, settings, completions
   const wins = insights.filter((i) => i.kind === 'win'), patterns = insights.filter((i) => i.kind === 'pattern');
   // "What we noticed": lead with a win, then a pattern, then whatever's next.
   const noticed = [wins[0], patterns[0], wins[1] ?? patterns[1]].filter(Boolean) as Insight[];
+  // Patterns need enough history to mean anything: hold them back for the first three weeks.
+  const tracked = trackingDays(owner, tasks, today), unlocked = tracked >= INSIGHT_UNLOCK_DAYS;
   const insight = view.name === 'insight' ? insights.find((i) => i.id === view.id) : undefined;
 
   return (
@@ -70,27 +73,29 @@ export function InsightsHub({ client, owner, today, tasks, settings, completions
               </CardContent>
             </Card>
 
+            {unlocked ? (
             <section className="flex flex-col gap-3" aria-labelledby="noticed-title">
-              <div><h2 id="noticed-title" className="text-title font-bold">What we noticed</h2><p className="text-sm text-muted-foreground">A few patterns from your month that might be helpful.</p></div>
-              {noticed.length ? (
-                <div className="grid gap-3 md:grid-cols-3">
-                  {noticed.map((i) => (
-                    <button key={i.id} type="button" onClick={() => open({ name: 'insight', id: i.id })}
-                      className={cn('group flex flex-col gap-3 rounded-2xl p-4 text-left ring-1 transition-[scale,box-shadow] duration-100 active:scale-[0.98] hover:ring-2',
-                        i.kind === 'win' ? 'bg-mint/60 ring-primary/15 hover:ring-primary/30' : 'bg-lavender/70 ring-lavender-ink/10 hover:ring-lavender-ink/25')}>
-                      <div className="flex items-start gap-3">
-                        <InsightIcon insight={i} />
-                        <div className="min-w-0"><p className="font-semibold leading-snug">{i.headline}</p><p className="mt-1 text-sm text-muted-foreground">{i.detail}</p></div>
-                      </div>
-                      <span className="mt-auto inline-flex items-center gap-1 pl-14 text-sm font-medium text-lavender-ink underline underline-offset-4">{i.link}<ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" /></span>
-                    </button>
-                  ))}
-                </div>
-              ) : <EmptyState icon={<Sparkles className="size-5" aria-hidden="true" />}>Patterns show up after a week or two of check-offs. Keep going and check back soon.</EmptyState>}
-            </section>
+                <div><h2 id="noticed-title" className="text-title font-bold">What we noticed</h2><p className="text-sm text-muted-foreground">A few patterns from your month that might be helpful.</p></div>
+                {noticed.length ? (
+                  <div className="grid gap-3 md:grid-cols-3">
+                    {noticed.map((i) => (
+                      <button key={i.id} type="button" onClick={() => open({ name: 'insight', id: i.id })}
+                        className={cn('group flex flex-col gap-3 rounded-2xl p-4 text-left ring-1 transition-[scale,box-shadow] duration-100 active:scale-[0.98] hover:ring-2',
+                          i.kind === 'win' ? 'bg-mint/60 ring-primary/15 hover:ring-primary/30' : 'bg-lavender/70 ring-lavender-ink/10 hover:ring-lavender-ink/25')}>
+                        <div className="flex items-start gap-3">
+                          <InsightIcon insight={i} />
+                          <div className="min-w-0"><p className="font-semibold leading-snug">{i.headline}</p><p className="mt-1 text-sm text-muted-foreground">{i.detail}</p></div>
+                        </div>
+                        <span className="mt-auto inline-flex items-center gap-1 pl-14 text-sm font-medium text-lavender-ink underline underline-offset-4">{i.link}<ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" /></span>
+                      </button>
+                    ))}
+                  </div>
+                ) : <EmptyState icon={<Sparkles className="size-5" aria-hidden="true" />}>Patterns show up after a week or two of check-offs. Keep going and check back soon.</EmptyState>}
+              </section>
+            ) : <LearningCard days={tracked} />}
 
             <div className="flex flex-col gap-2">
-              <NavRow icon={<FileText />} title="View all insights" onClick={() => open({ name: 'all' })}>Explore every win and pattern from {monthName}.</NavRow>
+              {unlocked && <NavRow icon={<FileText />} title="View all insights" onClick={() => open({ name: 'all' })}>Explore every win and pattern from {monthName}.</NavRow>}
               <NavRow icon={<ChartColumn />} title="Weekly trend" onClick={() => open({ name: 'trend' })}>See your consistency over time with a simple bar chart.</NavRow>
               <NavRow icon={<TrendingUp />} title="Your numbers" onClick={() => open({ name: 'numbers' })}>Steps, water and other measurements you track.</NavRow>
               <NavRow icon={<CalendarDays />} title="Day-by-day history" onClick={() => open({ name: 'history' })}>Every scheduled day, filters, and a CSV download.</NavRow>
@@ -100,7 +105,8 @@ export function InsightsHub({ client, owner, today, tasks, settings, completions
           </>
         )}
 
-        {view.name === 'all' && (
+        {view.name === 'all' && !unlocked && <>{back}<LearningCard days={tracked} /></>}
+        {view.name === 'all' && unlocked && (
           <>
             {back}
             <ScreenTitle title="All insights" subtitle={`A closer look at your habits in ${monthName}.`} />
@@ -111,7 +117,7 @@ export function InsightsHub({ client, owner, today, tasks, settings, completions
           </>
         )}
 
-        {view.name === 'insight' && (insight ? (
+        {view.name === 'insight' && (insight && unlocked ? (
           <>
             {back}
             <ScreenTitle title={insight.tip?.weekday ? `${insight.tip.weekday} ${lower(insight.task.title)}` : insight.short} subtitle="A closer look at this pattern." />
@@ -262,3 +268,25 @@ function HowCalculated() {
     </Disclosure>
   );
 }
+
+/** Shown until insights unlock: what's happening, and how far along it is. */
+function LearningCard({ days }: { days: number }) {
+  const left = Math.max(0, INSIGHT_UNLOCK_DAYS - days);
+  return (
+    <section className="flex flex-col gap-4 rounded-2xl bg-lavender p-5 text-lavender-ink md:p-6" aria-labelledby="learning-title">
+      <div className="flex items-start gap-4">
+        <span className="grid size-12 shrink-0 place-items-center rounded-full bg-card text-ink"><Sparkles className="size-5 animate-pulse" aria-hidden="true" /></span>
+        <div>
+          <h2 id="learning-title" className="text-lg font-semibold text-foreground">We’re finding your insights</h2>
+          <p className="mt-1 text-sm">We’re looking for insights based on your daily consistency patterns. They’ll appear here after three weeks of tracking, so they reflect real habits, not one off day.</p>
+        </div>
+      </div>
+      <div>
+        <div className="mb-1.5 flex justify-between text-xs font-medium"><span>Day {Math.min(days, INSIGHT_UNLOCK_DAYS)} of {INSIGHT_UNLOCK_DAYS}</span><span>{left ? `${left} day${left === 1 ? '' : 's'} to go` : 'Almost there'}</span></div>
+        <Meter value={Math.min(days, INSIGHT_UNLOCK_DAYS)} max={INSIGHT_UNLOCK_DAYS} className="h-2 bg-card/70" label={`Day ${days} of ${INSIGHT_UNLOCK_DAYS} toward your first insights`} />
+      </div>
+      <p className="text-xs">Keep checking off your habits. Your progress and weekly trend are below in the meantime.</p>
+    </section>
+  );
+}
+
