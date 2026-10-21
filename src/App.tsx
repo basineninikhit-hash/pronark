@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { CalendarDays, ChartColumn, ChevronDown, Gift, House, LogOut, Settings as SettingsIcon, Smile, Target, UserRound, Users, type LucideProps } from 'lucide-react';
@@ -11,6 +11,9 @@ import { Segmented } from '@/components/segmented';
 import { Logo } from '@/components/pronark';
 import { Burst, GiftBoxDoodle, MagnifierDoodle, PlantPotDoodle, Sparkle, SunDoodle } from '@/components/doodles';
 import { CompanionCharacter, companionReact, toCharacterStyle } from '@/components/companion-character';
+import { FloatingCompanion } from '@/components/floating-companion';
+import { ambientLine, categoryOf, checkoffLine, companionSay } from '@/lib/companion-lines';
+import { findInsights, monthRecords } from '@/lib/insights';
 import { GoalsForm, KpiLogForm, TaskForm, TemplateForm } from '@/components/editors';
 import { useSlidingIndicator } from '@/components/sliding-indicator';
 import { OnboardingChecklist } from '@/components/onboarding-checklist';
@@ -75,6 +78,15 @@ export function App() {
   const ownProfile = profiles.find((p) => p.user_id === own), group = memberships.find((m) => m.user_id === own);
   const ownExperience = experiencePrefs.find((p) => p.owner_id === own);
   const characterStyle = toCharacterStyle(ownExperience?.character_style);
+  const insightLine = useMemo(() => {
+    if (page !== 'Insights' || !own) return undefined;
+    const last = (() => { const d = new Date(today + 'T12:00:00Z'); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - 1); return d.toISOString().slice(0, 10); })();
+    for (const [m, label] of [[last, 'last month'], [month, 'this month']] as const) {
+      const top = findInsights(monthRecords(own, m, today, tasks, settings, completions), label)[0];
+      if (top) return top.kind === 'win' ? top.headline.replace(/\.$/, '') + (top.id.startsWith('top-') ? ` ${label}.` : '.') : top.headline + ' Want to try a shorter version?';
+    }
+    return undefined;
+  }, [page, own, today, month, tasks, settings, completions]);
 
   useEffect(() => {
     if (!supabase) { setReady(true); return; }
@@ -183,16 +195,16 @@ export function App() {
     ]);
     if (!saved) { toast.error('Couldn’t save that. Please try again.', { id: toastId }); return false; }
     companionReact(next ? 'cheer' : 'shrug');
-    let cheer: { text: string; cue: string } | null = null;
-    if (next && date === today && ownExperience?.chatter === 'full') {
+    toast.success(next ? 'All done and ready to go!' : 'Unchecked. You’re all set.', { id: toastId, duration: 2500 });
+    // The floating companion says something fitting (respecting the chatter setting).
+    const chatter = ownExperience?.chatter ?? 'full';
+    if (next && date === today && chatter !== 'off') {
+      const doneBefore = due.filter((x) => x.id !== t.id && completions.some((c) => c.task_id === x.id && c.local_date === today && c.completed)).length;
+      const said = checkoffLine({ doneBefore, due: due.length, category: categoryOf(t.title, t.reaction_category), seed: t.id + date });
       const key = 'pronark-reaction:' + own + ':' + t.id + ':' + date;
-      if (!localStorage.getItem(key)) { localStorage.setItem(key, '1'); cheer = reactionFor(t.reaction_category ?? 'other', t.id, date); }
+      if (said && (said.milestone || chatter === 'full')) companionSay(said.text);
+      else if (chatter === 'full' && !localStorage.getItem(key)) { localStorage.setItem(key, '1'); companionSay(reactionFor(t.reaction_category ?? 'other', t.id, date).text); }
     }
-    toast.success(next ? 'All done and ready to go!' : 'Unchecked. You’re all set.', {
-      id: toastId,
-      description: cheer ? `${cheer.cue} ${cheer.text}` : undefined,
-      duration: cheer ? 5000 : 2500,
-    });
     if (!next || date !== today) return true;
     if (due.length && due.every((x) => x.id === t.id || completions.some((c) => c.task_id === x.id && c.local_date === today && c.completed)) && ownExperience?.chatter !== 'off') {
       const key = 'pronark-celebrated-checklist:' + own + ':' + today;
@@ -258,6 +270,17 @@ export function App() {
     { id: 'group', title: 'Invite someone to a group', isCompleted: memberships.some((m) => m.user_id !== own), description: 'Share progress with a partner, family or friends.', actionLabel: 'Open groups', onAction: () => go('Groups') },
   ];
   const hideGuide = () => { localStorage.setItem('pronark-getting-started-hidden:' + own, '1'); setGuideHidden(true); };
+
+  const ownDue = tasks.filter((t) => t.owner_id === own && (!t.archive_date || t.archive_date > today) && isDue(t, settingFor(settings, t.id, today), today));
+  const doneToday = ownDue.filter((t) => completions.some((c) => c.task_id === t.id && c.local_date === today && c.completed)).length;
+  const yesterday = (() => { const d = new Date(today + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() - 1); return d.toISOString().slice(0, 10); })();
+  const yesterdayDue = tasks.filter((t) => t.owner_id === own && isDue(t, settingFor(settings, t.id, yesterday), yesterday));
+  const missedYesterday = yesterdayDue.length > 0 && !yesterdayDue.some((t) => completions.some((c) => c.task_id === t.id && c.local_date === yesterday && c.completed));
+  const chatter = ownExperience?.chatter ?? 'full';
+  const companionLine = chatter !== 'full' ? null : ambientLine({
+    page, today, first: (ownProfile.display_name || '').split(' ')[0], due: ownDue.length, done: doneToday, restDay: ownDue.length === 0, missedYesterday,
+    balance, insight: page === 'Insights' ? insightLine : undefined,
+  });
 
   const accountMenu = (
     <DropdownMenu>
@@ -339,6 +362,7 @@ export function App() {
         </main>
       </div>
       <TabBar page={page} onPage={go} />
+      {!readOnly && <FloatingCompanion style={characterStyle} line={companionLine} scene={page} storageKey={'pronark-companion-dock:' + own} />}
 
       <Sheet open={!!details} onClose={() => setDetails(null)} eyebrow="Routine details" title={details?.title} label="Activity details">
         {details && (

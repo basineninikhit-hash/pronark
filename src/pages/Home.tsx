@@ -108,8 +108,7 @@ export function HomePage(props: HomeProps) {
         </section>
 
         {/* Companion with a handwritten speech bubble; first on phones, beside the list on wide screens. */}
-        <aside className="order-first flex items-center gap-4 rounded-2xl bg-card/70 p-4 ring-1 ring-foreground/8 lg:order-none lg:sticky lg:top-20 lg:flex-col lg:p-5" aria-label="Your companion">
-          <CompanionCharacter style={character} interactive className="h-32 w-28 shrink-0 lg:order-2 lg:h-48 lg:w-40" />
+        <aside className="order-first flex items-center gap-4 rounded-2xl bg-card/70 p-4 ring-1 ring-foreground/8 lg:order-none lg:sticky lg:top-20 lg:flex-col lg:p-5" aria-label="Today at a glance">
           <div className="flex min-w-0 flex-1 flex-col gap-3 lg:order-1 lg:w-full">
             <p role="status" className="relative rounded-3xl rounded-bl-md bg-background px-4 py-3 ring-1 ring-foreground/10 lg:rounded-bl-3xl lg:rounded-br-md">
               <HandNote className="rotate-0 text-xl leading-6">{message}</HandNote>
