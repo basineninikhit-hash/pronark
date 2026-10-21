@@ -8,14 +8,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetFooter } from '@/components/sheet';
 import { Segmented } from '@/components/segmented';
-import { CompanionArt, Logo } from '@/components/pronark';
+import { Logo } from '@/components/pronark';
+import { CompanionCharacter, companionReact, toCharacterStyle } from '@/components/companion-character';
 import { GoalsForm, KpiLogForm, TaskForm, TemplateForm } from '@/components/editors';
 import { useSlidingIndicator } from '@/components/sliding-indicator';
 import { OnboardingChecklist } from '@/components/onboarding-checklist';
 import { cn } from '@/lib/utils';
 import { setAppReducedMotion } from '@/lib/motion';
 import { errorText, rpc, supabase, vapidPublicKey } from '@/lib/supabase';
-import { companionOptions, dayNumber, eastDate, isDue, monthStart, settingFor, type ActivityKpi, type ActivityKpiLog, type Allocation, type BonusProgress, type Category, type ChecklistPresentation, type Companion, type Completion, type Earning, type ItemAllocation, type Membership, type Profile, type Purchase, type ReportPreference, type Setting, type Task, type TaskPeriod, type Template, type View, type Wish } from '@/lib/domain';
+import { dayNumber, eastDate, isDue, monthStart, settingFor, type ActivityKpi, type ActivityKpiLog, type Allocation, type BonusProgress, type Category, type ChecklistPresentation, type Completion, type Earning, type ItemAllocation, type Membership, type Profile, type Purchase, type ReportPreference, type Setting, type Task, type TaskPeriod, type Template, type View, type Wish } from '@/lib/domain';
 import { reactionFor } from '@/companion-reactions';
 import type { ExperienceRow, OnboardingRow } from '@/GuidedSetup';
 import { getMonthSummary } from '@/lib/month-summary';
@@ -60,10 +61,11 @@ export function App() {
   const [onboardingProgress, setOnboardingProgress] = useState<OnboardingRow | null>(null), [onboardingReady, setOnboardingReady] = useState(false), [experiencePrefs, setExperiencePrefs] = useState<ExperienceRow[]>([]);
   const [tourOpen, setTourOpen] = useState(false), [guideHidden, setGuideHidden] = useState(false);
   const [invite, setInvite] = useState(''), [issued, setIssued] = useState(''), [pushStatus, setPushStatus] = useState('Not checked');
-  const [companion, setCompanion] = useState<Companion>('robot'), [recapMonth, setRecapMonth] = useState<string | null>(null), [celebration, setCelebration] = useState(''), [insightsView, setInsightsView] = useState<'consistency' | 'progress'>('consistency');
+  const [recapMonth, setRecapMonth] = useState<string | null>(null), [celebration, setCelebration] = useState(''), [insightsView, setInsightsView] = useState<'consistency' | 'progress'>('consistency');
   const today = eastDate(), month = monthStart(today), own = session?.user.id ?? '', owner = person || own, readOnly = owner !== own;
   const ownProfile = profiles.find((p) => p.user_id === own), group = memberships.find((m) => m.user_id === own);
   const ownExperience = experiencePrefs.find((p) => p.owner_id === own);
+  const characterStyle = toCharacterStyle(ownExperience?.character_style);
 
   useEffect(() => {
     if (!supabase) { setReady(true); return; }
@@ -71,8 +73,6 @@ export function App() {
     const { data } = supabase.auth.onAuthStateChange((_event, s) => { setSession(s); setPerson(s?.user.id ?? ''); });
     return () => data.subscription.unsubscribe();
   }, []);
-  useEffect(() => { if (!own) return; const saved = localStorage.getItem('pronark-companion:' + own); setCompanion(companionOptions.some((x) => x.id === saved) ? (saved as Companion) : 'robot'); }, [own]);
-  useEffect(() => { const saved = experiencePrefs.find((x) => x.owner_id === own); if (saved) setCompanion(saved.companion); }, [own, experiencePrefs]);
   useEffect(() => { setAppReducedMotion(!!ownExperience?.reduced_motion); }, [ownExperience?.reduced_motion]);
   useEffect(() => { setGuideHidden(!!own && localStorage.getItem('pronark-getting-started-hidden:' + own) === '1'); }, [own]);
   useEffect(() => {
@@ -173,6 +173,7 @@ export function App() {
       new Promise((resolve) => setTimeout(resolve, 700)),
     ]);
     if (!saved) { toast.error('Couldn’t save that. Please try again.', { id: toastId }); return false; }
+    companionReact(next ? 'cheer' : 'shrug');
     let cheer: { text: string; cue: string } | null = null;
     if (next && date === today && ownExperience?.chatter === 'full') {
       const key = 'pronark-reaction:' + own + ':' + t.id + ':' + date;
@@ -202,9 +203,9 @@ export function App() {
       }
     }, 'Your data was deleted. Let’s start fresh!');
     if (!saved) return false;
-    // Device-only memories (companion choice, shown celebrations) belong to the old data too.
+    // Device-only memories (shown celebrations, hidden checklist) belong to the old data too.
     for (const key of Object.keys(localStorage)) if (key.startsWith('pronark-') && key.includes(own)) localStorage.removeItem(key);
-    setCompanion('robot'); setPerson(own); setPage('Home');
+    setPerson(own); setPage('Home');
     return true;
   }
 
@@ -278,7 +279,7 @@ export function App() {
           {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
           <Suspense fallback={<PageSkeleton />}>
 
-          {page === 'Home' && <HomePage companion={companion} name={ownerProfile.display_name ?? 'you'} due={orderedDue} activities={visible} orderedIds={orderedIds} periods={taskPeriods}
+          {page === 'Home' && <HomePage character={characterStyle} name={ownerProfile.display_name ?? 'you'} due={orderedDue} activities={visible} orderedIds={orderedIds} periods={taskPeriods}
             grouped={presentation?.grouped ?? false} presentationReady={presentationReady} onMove={moveTask}
             onGrouped={(grouped) => run(() => rpc('save_checklist_presentation', { p_ordered_ids: orderedIds, p_grouped: grouped, p_expected_revision: presentation?.revision ?? 0 }), 'Checklist view saved.')}
             onPeriod={(task, period) => run(() => rpc('save_task_period', { p_task: task.id, p_period: period, p_expected_revision: taskPeriods.find((p) => p.task_id === task.id)?.revision ?? 0 }), 'Time of day saved.')}
@@ -304,14 +305,14 @@ export function App() {
             </>
           )}
           {page === 'Profile' && (
-            <ProfilePage profile={ownerProfile} readOnly={readOnly} busy={busy} today={today} companion={companion}
-              onCompanion={async (choice) => {
-                if (onboardingReady) {
-                  const saved = await run(() => rpc('save_experience_preferences', { p_companion: choice, p_chatter: ownExperience?.chatter ?? 'full', p_reduced_motion: ownExperience?.reduced_motion ?? false, p_expected_revision: ownExperience?.revision ?? 0 }), 'Companion saved across devices.');
-                  if (!saved) return;
+            <ProfilePage profile={ownerProfile} readOnly={readOnly} busy={busy} today={today} character={characterStyle}
+              onSaveCharacter={(style) => run(async () => {
+                try { await rpc('save_character_style', { p_style: style, p_expected_revision: ownExperience?.revision ?? 0 }); }
+                catch (e) {
+                  if (/save_character_style|schema cache/i.test(errorText(e))) throw new Error('Saving your companion’s look needs the latest database update (202610210024_companion_character.sql).');
+                  throw e;
                 }
-                setCompanion(choice); localStorage.setItem('pronark-companion:' + own, choice);
-              }}
+              }, 'Your companion’s new look is saved.')}
               onSettings={() => go('Settings')} onEditGoals={() => setGoalsEditor(true)} onTour={() => setTourOpen(true)} onGroups={() => go('Groups')}
               onSaveName={(name) => run(() => rpc('save_profile_name', { p_name: name, p_expected_revision: ownProfile.revision }), 'Profile name saved.')}>
               {!readOnly && onboardingReady && <ReactionSettings key={own} client={supabase} tasks={tasks.filter((t) => t.owner_id === own && !t.archive_date)} preference={ownExperience ?? null} onRefresh={refresh} />}
@@ -386,12 +387,12 @@ export function App() {
       </Sheet>
       <Sheet open={!!celebration} onClose={() => setCelebration('')} title="Wonderful work!" label="Achievement celebration">
         <div className="flex flex-col items-center gap-3 text-center">
-          <CompanionArt companion={companion} className="size-36 text-7xl" alt="Your Pronark companion celebrating" />
+          <CompanionCharacter style={characterStyle} entrance="celebrate" interactive listen={false} className="h-48 w-44" label="Your companion celebrating" />
           <p className="text-sm">{celebration}</p>
           <Button size="lg" className="w-full sm:w-auto" onClick={() => setCelebration('')}>Keep going</Button>
         </div>
       </Sheet>
-      {recapMonth && <Suspense fallback={null}><MonthlyRecap owner={own} name={ownProfile.display_name} month={recapMonth} today={today} tasks={tasks} settings={settings} completions={completions} kpis={activityKpis} kpiLogs={activityKpiLogs} companion={companion} onClose={() => setRecapMonth(null)} /></Suspense>}
+      {recapMonth && <Suspense fallback={null}><MonthlyRecap owner={own} name={ownProfile.display_name} month={recapMonth} today={today} tasks={tasks} settings={settings} completions={completions} kpis={activityKpis} kpiLogs={activityKpiLogs} character={characterStyle} onClose={() => setRecapMonth(null)} /></Suspense>}
     </div>
   );
 }

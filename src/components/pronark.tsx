@@ -3,7 +3,7 @@ import { Apple, CandyOff, ChevronDown, Dumbbell, Droplet, Footprints, Moon, Spar
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { companionOptions, weekdays, type Companion } from '@/lib/domain';
+import { weekdays } from '@/lib/domain';
 import { prefersReducedMotion, useSpring } from '@/lib/motion';
 
 const asset = (name: string) => import.meta.env.BASE_URL + name;
@@ -20,7 +20,6 @@ export function Logo({ variant = 'full', className }: { variant?: 'full' | 'mark
     </picture>
   );
 }
-export const robotSrc = asset('pronark-companion-robot.png');
 
 const activityIcons: [RegExp, ComponentType<LucideProps>][] = [
   [/gym|workout|exercise|strength/, Dumbbell],
@@ -37,12 +36,6 @@ export function ActivityIcon({ title, className }: { title: string; className?: 
   const s = title.toLowerCase();
   const Icon = activityIcons.find(([pattern]) => pattern.test(s))?.[1] ?? Sparkles;
   return <Icon aria-hidden="true" strokeWidth={1.75} className={cn('size-5 text-primary', className)} />;
-}
-
-export function CompanionArt({ companion, className, alt }: { companion: Companion; className?: string; alt?: string }) {
-  const option = companionOptions.find((c) => c.id === companion);
-  if (companion === 'robot') return <img src={robotSrc} alt={alt ?? 'Your Pronark companion'} className={cn('object-contain', className)} />;
-  return <span role="img" aria-label={alt ?? option?.name} className={cn('grid place-items-center text-6xl leading-none', className)}>{option?.icon}</span>;
 }
 
 /** Page heading. Visible title on desktop; phones show it under the translucent app bar. */

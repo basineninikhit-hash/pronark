@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 
 const db = new PGlite();
 await db.exec(`create role anon; create role authenticated; create role service_role; create schema auth; create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz); create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; create function digest(text,text) returns bytea language sql immutable as $$ select decode(md5($1),'hex') $$; create function gen_random_bytes(integer) returns bytea language sql volatile as $$ select decode(repeat('ab',$1),'hex') $$;`);
-for (const file of ['supabase/migrations/202609210001_foundation.sql','supabase/migrations/202609210002_rewards.sql','supabase/migrations/202609210003_rpc_permissions.sql','supabase/migrations/202609210004_atomic_setup.sql','supabase/migrations/202609220005_program_features.sql','supabase/migrations/202609220006_delivery_and_mirror.sql','supabase/migrations/202609220007_weekly_delivery_leases.sql','supabase/migrations/202609220008_sandbox_report_consent.sql','supabase/migrations/202609220009_invitation_pgcrypto_path.sql','supabase/migrations/202609220010_push_delivery_leases.sql','supabase/migrations/202609250011_goals_profile.sql','supabase/migrations/202609260012_rewards_overhaul.sql','supabase/migrations/202609260013_positive_balance_bonuses.sql','supabase/migrations/202610070014_activity_kpis.sql','supabase/migrations/202610080015_private_metrics.sql','supabase/migrations/202610080016_checklist_presentation.sql','supabase/migrations/202610080017_goal_target_growth.sql','supabase/migrations/202610080018_guided_onboarding.sql','supabase/migrations/202610100019_companion_reactions.sql','supabase/migrations/202610100020_custom_reminders.sql','supabase/migrations/202610100021_private_groups.sql','supabase/migrations/202610100022_together_garden.sql','supabase/migrations/202610200023_start_over.sql']) {
+for (const file of ['supabase/migrations/202609210001_foundation.sql','supabase/migrations/202609210002_rewards.sql','supabase/migrations/202609210003_rpc_permissions.sql','supabase/migrations/202609210004_atomic_setup.sql','supabase/migrations/202609220005_program_features.sql','supabase/migrations/202609220006_delivery_and_mirror.sql','supabase/migrations/202609220007_weekly_delivery_leases.sql','supabase/migrations/202609220008_sandbox_report_consent.sql','supabase/migrations/202609220009_invitation_pgcrypto_path.sql','supabase/migrations/202609220010_push_delivery_leases.sql','supabase/migrations/202609250011_goals_profile.sql','supabase/migrations/202609260012_rewards_overhaul.sql','supabase/migrations/202609260013_positive_balance_bonuses.sql','supabase/migrations/202610070014_activity_kpis.sql','supabase/migrations/202610080015_private_metrics.sql','supabase/migrations/202610080016_checklist_presentation.sql','supabase/migrations/202610080017_goal_target_growth.sql','supabase/migrations/202610080018_guided_onboarding.sql','supabase/migrations/202610100019_companion_reactions.sql','supabase/migrations/202610100020_custom_reminders.sql','supabase/migrations/202610100021_private_groups.sql','supabase/migrations/202610100022_together_garden.sql','supabase/migrations/202610200023_start_over.sql','supabase/migrations/202610210024_companion_character.sql']) {
   try { await db.exec(readFileSync(file,'utf8').replace('create extension if not exists pgcrypto;','')); console.log(`PASS migration ${file}`); }
   catch (error) { console.error(`FAIL migration ${file}: ${error.message}`); process.exitCode=1; break; }
 }
@@ -314,6 +314,19 @@ if (!process.exitCode) {
  assert.equal((await query('select count(*)::int n from memberships where user_id=$1',[a]))[0].n,1);
  await db.exec('reset role');
  console.log('PASS start over: full wipe, group hand-off, kept audit/Sheets marker, setup again');
+ // Companion character look: validated, revision-checked, created on first save.
+ await as(a);
+ const rev0=(await query('select coalesce((select revision from experience_preferences where owner_id=$1),0) r',[a]))[0].r;
+ await reject('select save_character_style($1::jsonb,$2)',[JSON.stringify({color:'neon',hat:'none',outfit:'none'}),rev0]);
+ await reject('select save_character_style($1::jsonb,$2)',[JSON.stringify({color:'mint',hat:'none',outfit:'none'}),rev0+5]);
+ const rev1=(await query('select save_character_style($1::jsonb,$2) r',[JSON.stringify({color:'mint',hat:'crown',outfit:'cape',extra:'x'}),rev0]))[0].r;
+ assert.equal(rev1,rev0+1);
+ assert.deepEqual((await query('select character_style s from experience_preferences where owner_id=$1',[a]))[0].s,{color:'mint',hat:'crown',outfit:'cape'});
+ await as(b); await db.exec('set role authenticated');
+ assert.equal((await query('select count(*)::int n from experience_preferences where owner_id=$1',[a]))[0].n,0,'looks are private to their owner');
+ await db.exec('reset role');
+ console.log('PASS companion character look: validation, revision check, privacy');
+
  console.log('PASS wallet purchases, linked-goal reversals, allocations, template ownership, report and notification preferences');
  console.log('PASS item-to-category rollup, spent/leftover funds, target drop on purchase, bonus pause while negative');
  console.log('PASS group isolation, invitation, setup retry, cross-owner write, daily/MWF rewards, rest-day bonus, correction, idempotency, prior-month lock, next-day archive');

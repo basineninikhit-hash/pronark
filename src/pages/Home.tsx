@@ -4,14 +4,15 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ActivityIcon, AnimatedNumber, CompanionArt, EmptyState, Meter, ProgressRing, SectionHeading, StatTile } from '@/components/pronark';
+import { ActivityIcon, AnimatedNumber, EmptyState, Meter, ProgressRing, SectionHeading, StatTile } from '@/components/pronark';
 import { cn } from '@/lib/utils';
-import { cents, companionOptions, periodLabels, settingFor, streakFor, type ActivityKpi, type ActivityKpiLog, type BonusProgress, type Companion, type Completion, type Setting, type Task, type TaskPeriod } from '@/lib/domain';
+import { cents, periodLabels, settingFor, streakFor, type ActivityKpi, type ActivityKpiLog, type BonusProgress, type Completion, type Setting, type Task, type TaskPeriod } from '@/lib/domain';
 import { prefersReducedMotion, useSpring } from '@/lib/motion';
 import { CheckoffToggle } from '@/components/checkoff-toggle';
+import { CompanionCharacter, type CharacterStyle } from '@/components/companion-character';
 
 type HomeProps = {
-  companion: Companion; name: string; due: Task[]; activities: Task[]; orderedIds: string[]; periods: TaskPeriod[]; grouped: boolean; presentationReady: boolean;
+  character: CharacterStyle; name: string; due: Task[]; activities: Task[]; orderedIds: string[]; periods: TaskPeriod[]; grouped: boolean; presentationReady: boolean;
   onMove: (task: Task, direction: number) => void; onGrouped: (grouped: boolean) => void; onPeriod: (task: Task, period: TaskPeriod['period']) => void;
   settings: Setting[]; completions: Completion[]; kpis: ActivityKpi[]; kpiLogs: ActivityKpiLog[]; today: string;
   earnedToday: number; earnedWeek: number; earnedMonth: number; balance: number; bonusProgress: BonusProgress[]; bonusProgressReady: boolean;
@@ -24,7 +25,7 @@ type HomeProps = {
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; };
 
 export function HomePage(props: HomeProps) {
-  const { companion, name, due, activities, orderedIds, periods, grouped, presentationReady, settings, completions, kpis, kpiLogs, today, busy, readOnly } = props;
+  const { character, name, due, activities, orderedIds, periods, grouped, presentationReady, settings, completions, kpis, kpiLogs, today, busy, readOnly } = props;
   const [manage, setManage] = useState(false);
   // Optimistic checkoffs: the row responds on tap; the server confirms (or we roll back) afterwards.
   const [pending, setPending] = useState<Record<string, boolean>>({});
@@ -60,7 +61,7 @@ export function HomePage(props: HomeProps) {
             <p className="mt-3 inline-flex max-w-full rounded-2xl rounded-bl-sm bg-background/80 px-3 py-2 text-sm shadow-sm ring-1 ring-foreground/5" role="status">{message}</p>
           </div>
           <ProgressRing value={due.length ? done / due.length : 0} size={128} stroke={9} label={`${done} of ${due.length} activities complete`}>
-            <CompanionArt companion={companion} className="size-20 text-5xl" alt={companionOptions.find((c) => c.id === companion)?.name} />
+            <CompanionCharacter style={character} interactive className="h-[5.5rem] w-20" />
           </ProgressRing>
         </div>
         <div className="mt-5 flex items-end justify-between gap-4 border-t border-primary/10 pt-4">

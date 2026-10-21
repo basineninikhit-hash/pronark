@@ -1,17 +1,21 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ChevronRight, Compass, Settings as SettingsIcon, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { FormField, SectionHeading } from '@/components/pronark';
 import { cn } from '@/lib/utils';
-import { companionOptions, isFirstOfMonth, type Companion, type Profile } from '@/lib/domain';
+import { isFirstOfMonth, type Profile } from '@/lib/domain';
+import { CharacterCustomizer } from '@/components/character-customizer';
+import { CompanionCharacter, type CharacterStyle } from '@/components/companion-character';
 
-export function ProfilePage({ profile, readOnly, busy, today, companion, onCompanion, onSettings, onEditGoals, onSaveName, onTour, onGroups, children }: {
-  profile: Profile; readOnly: boolean; busy: boolean; today: string; companion: Companion; onCompanion: (choice: Companion) => void;
+export function ProfilePage({ profile, readOnly, busy, today, character, onSaveCharacter, onSettings, onEditGoals, onSaveName, onTour, onGroups, children }: {
+  profile: Profile; readOnly: boolean; busy: boolean; today: string; character: CharacterStyle; onSaveCharacter: (style: CharacterStyle) => Promise<boolean>;
   onSettings: () => void; onEditGoals: () => void; onSaveName: (name: string) => Promise<boolean>; onTour: () => void; onGroups: () => void; children?: ReactNode;
 }) {
-  const [name, setName] = useState(profile.display_name);
+  const [name, setName] = useState(profile.display_name), [look, setLook] = useState(character);
+  useEffect(() => { setLook(character); }, [character.color, character.hat, character.outfit]);
+  const lookChanged = look.color !== character.color || look.hat !== character.hat || look.outfit !== character.outfit;
   const initials = profile.display_name.trim().split(/\s+/).slice(0, 2).map((s) => s[0]?.toUpperCase() ?? '').join('') || 'P';
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
@@ -46,17 +50,16 @@ export function ProfilePage({ profile, readOnly, busy, today, companion, onCompa
 
       <Card id="companion-picker">
         <CardContent className="flex flex-col gap-3">
-          <SectionHeading title="Your companion" description="Pick a cheerful friend for Home and celebrations. You can change it anytime." />
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-5" role="radiogroup" aria-label="Companion">
-            {companionOptions.map((option) => (
-              <button key={option.id} type="button" role="radio" aria-checked={companion === option.id} disabled={readOnly} onClick={() => onCompanion(option.id)}
-                className={cn('flex flex-col items-center gap-1.5 rounded-xl p-3 text-xs font-medium ring-1 transition-[background-color,scale,box-shadow] duration-100 active:scale-95 disabled:opacity-60',
-                  companion === option.id ? 'bg-primary/10 ring-2 ring-primary' : 'bg-card ring-foreground/10 hover:bg-muted/50')}>
-                <span className="text-3xl" aria-hidden="true">{option.icon}</span>
-                {option.name}
-              </button>
-            ))}
-          </div>
+          <SectionHeading title="Your companion" description="Dress up the friend who cheers you on at Home and in celebrations. Your look is saved to your account." />
+          {readOnly ? <CompanionCharacter style={character} interactive className="mx-auto h-56 w-48" /> : (
+            <>
+              <CharacterCustomizer value={look} onChange={setLook} disabled={busy} />
+              <div className="flex flex-wrap justify-end gap-2">
+                {lookChanged && <Button variant="ghost" onClick={() => setLook(character)}>Reset</Button>}
+                <Button disabled={busy || !lookChanged} onClick={() => onSaveCharacter(look)}>Save look</Button>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 

@@ -22,13 +22,6 @@ export type View = 'Home' | 'Calendar' | 'Insights' | 'Goals' | 'Wallet' | 'Grou
 export type Companion = 'robot' | 'dog' | 'cat' | 'muse' | 'care';
 export type RunAction = (action: () => Promise<unknown>, message: string) => Promise<boolean>;
 
-export const companionOptions: { id: Companion; name: string; icon: string }[] = [
-  { id: 'robot', name: 'Sprout robot', icon: '🤖' },
-  { id: 'dog', name: 'Sunny dog', icon: '🐶' },
-  { id: 'cat', name: 'Cozy cat', icon: '🐱' },
-  { id: 'muse', name: 'Dreamy muse', icon: '✨' },
-  { id: 'care', name: 'Gentle helper', icon: '🌱' },
-];
 export const initialActivities = [
   ['Going to the gym', 200], ['Meeting the monthly step goal', 200], ['Healthy lunch', 100], ['Healthy dinner', 100],
   ['No sugar', 100], ['Night skin care routine', 100], ['Morning routine', 100], ['Reaching water goal', 200],

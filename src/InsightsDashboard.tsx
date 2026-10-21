@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Segmented } from '@/components/segmented';
-import { CompanionArt, EmptyState, SectionHeading, StatTile } from '@/components/pronark';
+import { EmptyState, SectionHeading, StatTile } from '@/components/pronark';
+import { CompanionCharacter, type CharacterStyle } from '@/components/companion-character';
 import { getMonthSummary } from '@/lib/month-summary';
 import { prefersReducedMotion, project, rubberband, useSpring, VelocityTracker } from '@/lib/motion';
 
@@ -110,7 +111,7 @@ export function InsightsDashboard({owner,today,tasks,settings,completions,earnin
  </div>
 }
 
-export function MonthlyRecap({owner,name,month,today,tasks,settings,completions,kpis,kpiLogs,companion,onClose}:{owner:string;name:string;month:string;today:string;tasks:Task[];settings:Setting[];completions:Completion[];kpis:Kpi[];kpiLogs:KpiLog[];companion:'robot'|'dog'|'cat'|'muse'|'care';onClose:()=>void}){
+export function MonthlyRecap({owner,name,month,today,tasks,settings,completions,kpis,kpiLogs,character,onClose}:{owner:string;name:string;month:string;today:string;tasks:Task[];settings:Setting[];completions:Completion[];kpis:Kpi[];kpiLogs:KpiLog[];character:CharacterStyle;onClose:()=>void}){
  const [slide,setSlide]=useState(0);
  const summary=getMonthSummary(owner,month,today,tasks,settings,completions);
  const title=formatMonth(month);
@@ -136,7 +137,7 @@ export function MonthlyRecap({owner,name,month,today,tasks,settings,completions,
     <div ref={trackRef} className="flex h-full">{slides.map((s,i)=><section key={i} aria-hidden={i!==slide} className="flex w-full shrink-0 flex-col items-center gap-3 px-6 pt-2 pb-4 text-center">
      <div className="text-eyebrow text-primary">{s.eyebrow}</div>
      <h2 className="text-title">{i===0?'Your month in moments':s.title}</h2>
-     <CompanionArt companion={companion} className="my-2 size-32 text-7xl" alt="Your smiling Pronark companion"/>
+     <CompanionCharacter style={character} interactive listen={false} entrance={i===0?'hello':i===slides.length-1?'celebrate':undefined} className="my-2 h-36 w-32" label="Your smiling Pronark companion"/>
      <strong className="tabular text-6xl font-semibold tracking-tight">{s.metric}</strong>
      <h3 className="text-headline -mt-1 text-muted-foreground">{s.label}</h3>
      <p className="max-w-xs text-sm">{s.body}</p>
