@@ -201,3 +201,17 @@ export function EmptyState({ icon, children, className }: { icon?: ReactNode; ch
 }
 
 export { Label };
+
+/** Lavender note with a doodle, like the "You're in control." panels in the mockups. */
+export function NotePanel({ icon, title, children, tone = 'lavender', className }: { icon?: ReactNode; title?: ReactNode; children: ReactNode; tone?: 'lavender' | 'mint' | 'peach'; className?: string }) {
+  return (
+    <div className={cn('flex items-start gap-3 rounded-2xl p-4 text-sm',
+      tone === 'lavender' ? 'bg-lavender text-lavender-ink' : tone === 'mint' ? 'bg-mint text-mint-ink' : 'bg-peach text-peach-ink', className)}>
+      {icon && <span className="shrink-0 text-ink [&_svg]:size-10" aria-hidden="true">{icon}</span>}
+      <div className="min-w-0">
+        {title && <p className="font-semibold">{title}</p>}
+        <div className="opacity-90">{children}</div>
+      </div>
+    </div>
+  );
+}

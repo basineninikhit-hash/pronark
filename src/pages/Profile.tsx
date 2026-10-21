@@ -18,7 +18,7 @@ export function ProfilePage({ profile, readOnly, busy, today, character, onSaveC
   const lookChanged = look.color !== character.color || look.hat !== character.hat || look.outfit !== character.outfit;
   const initials = profile.display_name.trim().split(/\s+/).slice(0, 2).map((s) => s[0]?.toUpperCase() ?? '').join('') || 'P';
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
+    <div className="flex w-full max-w-3xl flex-col gap-5">
       <section className="flex items-center gap-4 rounded-2xl bg-gradient-to-br from-primary/12 to-transparent p-5 ring-1 ring-primary/15">
         <span className="grid size-16 shrink-0 place-items-center rounded-full bg-primary text-xl font-semibold text-primary-foreground" aria-label="Profile initials">{initials}</span>
         <div className="min-w-0">

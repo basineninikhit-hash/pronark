@@ -1,10 +1,11 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { CalendarCheck, Check, ChevronLeft, ChevronRight, Circle, Download, Flame, Lightbulb, Sparkles, Star, Target, TrendingUp, X } from 'lucide-react';
+import { CalendarCheck, ChartColumn, Check, ChevronLeft, ChevronRight, Circle, Download, Flame, Lightbulb, Sparkles, Star, Target, TrendingUp, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Segmented } from '@/components/segmented';
-import { EmptyState, SectionHeading, StatTile } from '@/components/pronark';
+import { EmptyState, NotePanel, SectionHeading, StatTile } from '@/components/pronark';
+import { BulbDoodle, PlantPotDoodle } from '@/components/doodles';
 import { CompanionCharacter, type CharacterStyle } from '@/components/companion-character';
 import { getMonthSummary } from '@/lib/month-summary';
 import { prefersReducedMotion, project, rubberband, useSpring, VelocityTracker } from '@/lib/motion';
@@ -32,6 +33,16 @@ const due=(task:Task,settings:Setting[],day:string)=>{const s=settingFor(setting
 
 function saveCsv(filename:string,rows:string[][]){const csv=rows.map(row=>row.map(cell=>'"'+(/^[=+\-@\t\r]/.test(cell)?"'":'')+cell.replaceAll('"','""')+'"').join(',')).join('\r\n');const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));link.download=filename;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000)}
 
+/** Ring chart: the arc shows the consistency rate; the thin inner ring splits the days by state. */
+function Donut({value,segments,label}:{value:number;segments:[string,number][];label:string}){
+ const total=segments.reduce((n,[,v])=>n+v,0)||1,r=52,c=2*Math.PI*r,ri=40,ci=2*Math.PI*ri;let acc=0;
+ return <div className="relative grid size-36 shrink-0 place-items-center"><svg viewBox="0 0 128 128" className="absolute inset-0 -rotate-90" aria-hidden="true">
+  <circle cx="64" cy="64" r={r} fill="none" strokeWidth="12" className="stroke-muted"/>
+  <circle cx="64" cy="64" r={r} fill="none" strokeWidth="12" strokeLinecap="round" stroke="var(--primary)" strokeDasharray={`${c*value/100} ${c}`} className="transition-[stroke-dasharray] duration-700 ease-out"/>
+  {segments.map(([color,v],i)=>{const len=ci*v/total,el=<circle key={i} cx="64" cy="64" r={ri} fill="none" strokeWidth="4" stroke={color} strokeDasharray={`${Math.max(0,len-2)} ${ci}`} strokeDashoffset={-acc}/>;acc+=len;return el})}
+ </svg><div className="text-center"><strong className="tabular block text-2xl font-bold">{label}</strong><small className="text-[0.625rem] text-muted-foreground">Consistency</small></div></div>
+}
+
 export { getMonthSummary };
 
 export function InsightsDashboard({owner,today,tasks,settings,completions,earnings,kpis,kpiLogs,onOpenRecap}:Props){
@@ -48,6 +59,17 @@ export function InsightsDashboard({owner,today,tasks,settings,completions,earnin
  const selectedRecords=records.filter(r=>r.day===selectedDay);
  const earned=earnings.filter(e=>e.active&&e.earned_date>=range.start&&e.earned_date<=range.end).reduce((sum,e)=>sum+e.cents,0);
  const byDay=dates.map(day=>({day,rows:records.filter(r=>r.day===day)}));
+ // Day breakdown for the consistency ring (days, not routines, like the mockup).
+ const dayStates=byDay.map(({rows})=>{const done=rows.filter(r=>r.completed).length;return !rows.length?'rest':done===rows.length?'complete':done===0?'missed':'partial'});
+ const dayCount=(k:string)=>dayStates.filter(x=>x===k).length;
+ const rateFor=(from:string,to:string)=>{const rows=daysBetween(from,to).filter(d=>d<=today).flatMap(day=>filtered.filter(t=>due(t,settings,day)).map(t=>completions.some(c=>c.task_id===t.id&&c.local_date===day&&c.completed)));return rows.length?Math.round(rows.filter(Boolean).length/rows.length*100):null};
+ const span=dates.length, previousRate=span?rateFor(addDays(range.start,-span),addDays(range.start,-1)):null;
+ // Last four Monday-to-Sunday weeks, oldest first.
+ const thisMonday=addDays(today,1-weekday(today));
+ const weeks=[3,2,1,0].map(n=>{const start=addDays(thisMonday,-7*n),end=addDays(start,6);return {start,end,rate:rateFor(start,end)}});
+ const rated=weeks.filter(w=>w.rate!==null) as {start:string;end:string;rate:number}[];
+ let rising=0;for(let i=rated.length-1;i>0&&rated[i].rate>rated[i-1].rate;i--)rising++;
+ const shortDay=(d:string)=>new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',timeZone:'UTC'}).format(dateOf(d));
  const weekdays=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
  const weekdayNames=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
  const challenge=filtered.flatMap(task=>weekdayNames.map((name,i)=>{const rows=records.filter(r=>r.task.id===task.id&&weekday(r.day)===i+1);return {task,name,total:rows.length,done:rows.filter(r=>r.completed).length}})).filter(x=>x.total>=2&&x.done<x.total).sort((a,b)=>a.done/a.total-b.done/b.total||b.total-a.total)[0];
@@ -61,7 +83,6 @@ export function InsightsDashboard({owner,today,tasks,settings,completions,earnin
  const selectedDone=selectedRecords.filter(x=>x.completed);
  return <div className="flex flex-col gap-5">
   <div className="flex flex-wrap items-end justify-between gap-3">
-   <div><div className="text-eyebrow text-muted-foreground">Your routines</div><h2 className="text-title mt-1">Your consistency</h2><p className="mt-1 text-sm text-muted-foreground">See the days you showed up, the routines that stuck, and patterns worth noticing.</p></div>
    <div className="flex w-full flex-wrap gap-2 sm:w-auto">
     <Segmented label="Time range" value={period} onChange={p=>{setPeriod(p);setSelectedDay(p==='month'?cursor:today)}} options={(['week','month','90 days'] as Period[]).map(p=>({value:p,label:p==='90 days'?'90 days':p[0].toUpperCase()+p.slice(1)}))}/>
     <NativeSelect className="w-full sm:w-48" aria-label="Filter by activity" value={activity} onChange={e=>setActivity(e.target.value)}><NativeSelectOption value="all">All activities</NativeSelectOption>{mine.map(t=><NativeSelectOption key={t.id} value={t.id}>{t.title}</NativeSelectOption>)}</NativeSelect>
@@ -71,6 +92,23 @@ export function InsightsDashboard({owner,today,tasks,settings,completions,earnin
    <StatTile icon={<Target className="size-3.5" aria-hidden="true"/>} label="Consistency" value={records.length?consistency+'%':'—'} hint={`${completed} of ${records.length} scheduled routines`}/>
    <StatTile icon={<CalendarCheck className="size-3.5" aria-hidden="true"/>} label="Completed" value={`${completed} of ${records.length}`} hint="Rest days aren't counted"/>
    <StatTile icon={<Flame className="size-3.5" aria-hidden="true"/>} label="Longest streak" value={`${longestStreak} day${longestStreak===1?'':'s'}`} hint={`${money(earned)} earned this period`}/>
+  </div>
+  <div className="grid gap-4 lg:grid-cols-2">
+   <Card><CardContent className="flex flex-col gap-4">
+    <SectionHeading title="Consistency" description="How often you completed your habits." action={<PlantPotDoodle className="h-12 w-11 text-ink"/>}/>
+    <div className="flex flex-wrap items-center gap-5">
+     <Donut value={records.length?consistency:0} segments={[['var(--primary)',dayCount('complete')],['var(--chart-2)',dayCount('partial')],['var(--destructive)',dayCount('missed')],['var(--chart-1)',dayCount('rest')]]} label={records.length?consistency+'%':'—'}/>
+     <ul className="flex min-w-40 flex-1 flex-col gap-2 text-sm">{([['Completed','var(--primary)','complete'],['Partly done','var(--chart-2)','partial'],['Missed','var(--destructive)','missed'],['Rest days','var(--chart-1)','rest']] as const).map(([l,c,k])=><li key={k} className="flex items-center gap-2"><i className="size-2.5 rounded-full" style={{background:c}}/><span className="flex-1 text-muted-foreground">{l}</span><b className="tabular font-semibold">{dayCount(k)} day{dayCount(k)===1?'':'s'}</b></li>)}</ul>
+    </div>
+    <NotePanel tone="mint" icon={<BulbDoodle/>} title="Takeaway">{records.length?<>You completed {consistency}% of your scheduled habits in this view.{previousRate!==null&&consistency!==previousRate?<> That’s {Math.abs(consistency-previousRate)} points {consistency>previousRate?'higher':'lower'} than the period before.</>:previousRate!==null?<> The same as the period before.</>:null}</>:'Your takeaway appears once you have scheduled habits in this view.'}</NotePanel>
+   </CardContent></Card>
+   <Card><CardContent className="flex flex-col gap-4">
+    <SectionHeading title="Progress over time" description="Your consistency rate each week." action={<ChartColumn className="size-5 text-chart-3" aria-hidden="true"/>}/>
+    <div className="flex h-40 items-end gap-3" role="img" aria-label={'Weekly consistency: '+weeks.map(w=>shortDay(w.start)+' '+(w.rate===null?'no data':w.rate+'%')).join(', ')}>
+     {weeks.map((w,i)=><div key={w.start} className="flex h-full flex-1 flex-col items-center justify-end gap-1.5"><span className="tabular text-xs font-semibold">{w.rate===null?'—':w.rate+'%'}</span><div className="w-full flex-1 flex items-end"><i className="block w-full rounded-t-lg transition-[height] duration-700 ease-out" style={{height:Math.max(4,w.rate??0)+'%',background:i===weeks.length-1?'var(--chart-3)':'var(--chart-1)'}}/></div><small className="text-[0.625rem] whitespace-nowrap text-muted-foreground">{shortDay(w.start)}–{shortDay(w.end)}</small></div>)}
+    </div>
+    <NotePanel icon={<TrendingUp className="!size-6"/>} title={rising>=2?'You’re on an upward trend!':rated.length>1&&rated.at(-1)!.rate>=rated.at(-2)!.rate?'Holding steady':'Every week counts'}>{rising>=2?`Your consistency has improved for ${rising} weeks in a row. Keep going!`:rated.length>1?`This week: ${rated.at(-1)!.rate}% · last week: ${rated.at(-2)!.rate}%.`:'Check off a few habits to see your weekly trend.'}</NotePanel>
+   </CardContent></Card>
   </div>
   <Card><CardContent className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
    <div className="flex flex-col gap-3">

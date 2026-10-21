@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ActivityIcon, AnimatedNumber, EmptyState, Meter, ProgressRing, SectionHeading, StatTile } from '@/components/pronark';
+import { ActivityIcon, AnimatedNumber, EmptyState, Meter, StatTile } from '@/components/pronark';
+import { CoinsIcon, HandNote, Sparkle } from '@/components/doodles';
 import { cn } from '@/lib/utils';
 import { cents, periodLabels, settingFor, streakFor, type ActivityKpi, type ActivityKpiLog, type BonusProgress, type Completion, type Setting, type Task, type TaskPeriod } from '@/lib/domain';
 import { prefersReducedMotion, useSpring } from '@/lib/motion';
@@ -21,8 +22,6 @@ type HomeProps = {
   /** Shown under the greeting, e.g. the getting-started checklist. */
   intro?: ReactNode;
 };
-
-const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; };
 
 export function HomePage(props: HomeProps) {
   const { character, name, due, activities, orderedIds, periods, grouped, presentationReady, settings, completions, kpis, kpiLogs, today, busy, readOnly } = props;
@@ -52,73 +51,81 @@ export function HomePage(props: HomeProps) {
     : `Nice work, ${first}! ${done} of ${due.length} wins today.`;
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/12 via-primary/5 to-transparent p-5 ring-1 ring-primary/15 md:p-6">
-        <div className="flex items-center gap-5">
-          <div className="min-w-0 flex-1">
-            <p className="text-sm text-muted-foreground">{greeting()},</p>
-            <h2 className="text-display truncate">{first}</h2>
-            <p className="mt-3 inline-flex max-w-full rounded-2xl rounded-bl-sm bg-background/80 px-3 py-2 text-sm shadow-sm ring-1 ring-foreground/5" role="status">{message}</p>
-          </div>
-          <ProgressRing value={due.length ? done / due.length : 0} size={128} stroke={9} label={`${done} of ${due.length} activities complete`}>
-            <CompanionCharacter style={character} interactive className="h-[5.5rem] w-20" />
-          </ProgressRing>
+    <div className="flex w-full max-w-6xl flex-col gap-6">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-[1fr_1fr_auto]">
+        <div className="flex items-center gap-3 rounded-2xl bg-card p-4 ring-1 ring-foreground/8">
+          <span className="grid size-11 shrink-0 place-items-center rounded-full bg-mint text-mint-ink"><CoinsIcon /></span>
+          <div className="min-w-0"><p className="text-xs text-muted-foreground">Today’s earned</p><AnimatedNumber value={props.earnedToday} format={cents} className="text-2xl font-bold tracking-tight" /></div>
         </div>
-        <div className="mt-5 flex items-end justify-between gap-4 border-t border-primary/10 pt-4">
-          <div>
-            <p className="text-xs text-muted-foreground">Today’s earnings</p>
-            <AnimatedNumber value={props.earnedToday} format={cents} className="text-3xl font-semibold tracking-tight" />
-          </div>
-          <Button variant="ghost" onClick={props.onWallet} className="text-primary">View wallet <ChevronRight data-icon="inline-end" /></Button>
+        <button type="button" onClick={props.onWallet} className="flex items-center gap-3 rounded-2xl bg-card p-4 text-left ring-1 ring-foreground/8 transition-[scale,background-color] duration-100 hover:bg-card/80 active:scale-[0.98]">
+          <span className="grid size-11 shrink-0 place-items-center rounded-full bg-lavender text-lavender-ink"><WalletIcon className="size-5" aria-hidden="true" /></span>
+          <div className="min-w-0"><p className="text-xs text-muted-foreground">Available in wallet</p><AnimatedNumber value={props.balance} format={cents} className="text-2xl font-bold tracking-tight" /></div>
+          <ChevronRight className="ml-auto size-4 text-muted-foreground" aria-hidden="true" />
+        </button>
+        <div aria-hidden="true" className="hidden rotate-6 items-center gap-1 self-center rounded-xl bg-card px-4 py-3 shadow-md ring-1 ring-foreground/10 md:flex">
+          <HandNote className="rotate-0 text-2xl leading-6">Progress<br />pays off</HandNote><Sparkle className="size-6 text-ink" />
         </div>
-      </section>
+      </div>
 
       {props.intro}
 
-      <div className="grid grid-cols-3 gap-2.5">
-        <StatTile label="This week" value={cents(props.earnedWeek)} />
-        <StatTile label="This month" value={cents(props.earnedMonth)} />
-        <button type="button" onClick={props.onWallet} className="rounded-xl text-left transition-[scale] duration-100 active:scale-[0.97]">
-          <StatTile tone="primary" label="Balance" icon={<WalletIcon className="size-3.5" aria-hidden="true" />} value={cents(props.balance)} className="h-full" />
-        </button>
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_17rem]">
+        <section className="flex flex-col gap-3 rounded-2xl bg-card p-4 ring-1 ring-foreground/8 md:p-5" aria-labelledby="checklist-title">
+          <div className="flex items-center justify-between gap-2">
+            <h2 id="checklist-title" className="text-title">Today’s habits</h2>
+            {!readOnly && (
+              <div className="flex gap-1.5">
+                <Button variant="outline" onClick={props.onAdd}><Plus data-icon="inline-start" />Add</Button>
+                <Button variant={manage ? 'default' : 'outline'} onClick={() => setManage(!manage)} aria-pressed={manage}><Pencil data-icon="inline-start" />{manage ? 'Done' : 'Edit'}</Button>
+              </div>
+            )}
+          </div>
+          {presentationReady ? (
+            <label className="flex items-center gap-2 self-start text-xs text-muted-foreground">
+              <Switch checked={grouped} disabled={busy || readOnly} onCheckedChange={(v) => props.onGrouped(v)} />
+              Group by time of day
+            </label>
+          ) : <p className="text-xs text-muted-foreground">Checklist organization needs the new database update.</p>}
+
+          {due.length ? (
+            <div className="-mx-2 flex flex-col divide-y divide-foreground/6">
+              {due.map((t, i) => {
+                const period = periodOf(t);
+                const header = grouped && (i === 0 || periodOf(due[i - 1]) !== period);
+                return (
+                  <Fragment key={t.id}>
+                    {header && <h3 className="text-eyebrow px-2 pt-3 pb-1 text-muted-foreground">{periodLabels[period]}</h3>}
+                    <TaskRow task={t} completed={isDone(t)} setting={settingFor(settings, t.id, today)} kpi={kpis.find((k) => k.task_id === t.id)}
+                      logged={kpiLogs.find((k) => k.task_id === t.id && k.local_date === today)} readOnly={readOnly} busy={busy} manage={manage}
+                      period={period} presentationReady={presentationReady} canMoveUp={orderedIds.indexOf(t.id) > 0} canMoveDown={orderedIds.indexOf(t.id) < orderedIds.length - 1}
+                      onToggle={() => toggle(t)} onLog={() => props.onLog(t, today)} onDetails={() => props.onDetails(t)}
+                      onPeriod={(p) => props.onPeriod(t, p)} onMove={(d) => props.onMove(t, d)} />
+                  </Fragment>
+                );
+              })}
+            </div>
+          ) : <EmptyState>Nothing scheduled today. Rest is part of the plan.</EmptyState>}
+        </section>
+
+        {/* Companion with a handwritten speech bubble; first on phones, beside the list on wide screens. */}
+        <aside className="order-first flex items-center gap-4 rounded-2xl bg-card/70 p-4 ring-1 ring-foreground/8 lg:order-none lg:sticky lg:top-20 lg:flex-col lg:p-5" aria-label="Your companion">
+          <CompanionCharacter style={character} interactive className="h-32 w-28 shrink-0 lg:order-2 lg:h-48 lg:w-40" />
+          <div className="flex min-w-0 flex-1 flex-col gap-3 lg:order-1 lg:w-full">
+            <p role="status" className="relative rounded-3xl rounded-bl-md bg-background px-4 py-3 ring-1 ring-foreground/10 lg:rounded-bl-3xl lg:rounded-br-md">
+              <HandNote className="rotate-0 text-xl leading-6">{message}</HandNote>
+            </p>
+            <div className="lg:order-3">
+              <div className="mb-1 flex justify-between text-xs text-muted-foreground"><span>Today</span><span className="tabular">{done} of {due.length}</span></div>
+              <Meter value={done} max={Math.max(1, due.length)} label={`${done} of ${due.length} activities complete`} />
+            </div>
+          </div>
+        </aside>
       </div>
 
-      <section className="flex flex-col gap-3" aria-labelledby="checklist-title">
-        <div className="flex items-center justify-between gap-2">
-          <h2 id="checklist-title" className="text-title">Today’s checklist</h2>
-          {!readOnly && (
-            <div className="flex gap-1.5">
-              <Button variant="secondary" onClick={props.onAdd}><Plus data-icon="inline-start" />Add</Button>
-              <Button variant={manage ? 'default' : 'secondary'} onClick={() => setManage(!manage)} aria-pressed={manage}><Pencil data-icon="inline-start" />{manage ? 'Done' : 'Edit'}</Button>
-            </div>
-          )}
-        </div>
-        {presentationReady ? (
-          <label className="flex items-center gap-2 self-start text-xs text-muted-foreground">
-            <Switch checked={grouped} disabled={busy || readOnly} onCheckedChange={(v) => props.onGrouped(v)} />
-            Group by time of day
-          </label>
-        ) : <p className="text-xs text-muted-foreground">Checklist organization needs the new database update.</p>}
-
-        {due.length ? (
-          <div className="flex flex-col gap-2">
-            {due.map((t, i) => {
-              const period = periodOf(t);
-              const header = grouped && (i === 0 || periodOf(due[i - 1]) !== period);
-              return (
-                <Fragment key={t.id}>
-                  {header && <h3 className="text-eyebrow mt-2 px-1 text-muted-foreground">{periodLabels[period]}</h3>}
-                  <TaskRow task={t} completed={isDone(t)} setting={settingFor(settings, t.id, today)} kpi={kpis.find((k) => k.task_id === t.id)}
-                    logged={kpiLogs.find((k) => k.task_id === t.id && k.local_date === today)} readOnly={readOnly} busy={busy} manage={manage}
-                    period={period} presentationReady={presentationReady} canMoveUp={orderedIds.indexOf(t.id) > 0} canMoveDown={orderedIds.indexOf(t.id) < orderedIds.length - 1}
-                    onToggle={() => toggle(t)} onLog={() => props.onLog(t, today)} onDetails={() => props.onDetails(t)}
-                    onPeriod={(p) => props.onPeriod(t, p)} onMove={(d) => props.onMove(t, d)} />
-                </Fragment>
-              );
-            })}
-          </div>
-        ) : <EmptyState>Nothing scheduled today. Rest is part of the plan.</EmptyState>}
-      </section>
+      <div className="grid grid-cols-2 gap-3">
+        <StatTile label="Earned this week" value={cents(props.earnedWeek)} />
+        <StatTile label="Earned this month" value={cents(props.earnedMonth)} />
+      </div>
 
       <section className="flex flex-col gap-3" aria-labelledby="streaks-title">
         <h2 id="streaks-title" className="text-title">Your streaks</h2>
@@ -164,7 +171,7 @@ function TaskRow({ task, completed, setting, kpi, logged, readOnly, busy, manage
   }, [completed, sweep]);
 
   return (
-    <div className={cn('rounded-xl bg-card ring-1 ring-foreground/10 transition-colors duration-200', completed && 'bg-primary/[0.04]')}>
+    <div className={cn('rounded-xl transition-colors duration-200', completed && 'bg-mint/40')}>
       <div className="flex min-h-16 items-center gap-3 py-2 pr-1.5 pl-3.5">
         <ActivityIcon title={task.title} className="hidden shrink-0 sm:block" />
         <div className="min-w-0 flex-1">

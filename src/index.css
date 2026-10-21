@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/ibm-plex-sans";
+@import "@fontsource/caveat/600.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -40,6 +41,15 @@
     --color-foreground: var(--foreground);
     --color-background: var(--background);
     --color-warning: var(--warning);
+    --color-mint: var(--mint);
+    --color-mint-ink: var(--mint-ink);
+    --color-lavender: var(--lavender);
+    --color-lavender-ink: var(--lavender-ink);
+    --color-peach: var(--peach);
+    --color-peach-ink: var(--peach-ink);
+    --color-ink: var(--ink);
+    --color-doodle-gold: var(--doodle-gold);
+    --color-doodle-mint: var(--doodle-mint);
     --color-warning-foreground: var(--warning-foreground);
     --color-glass: var(--glass);
     --radius-sm: calc(var(--radius) * 0.6);
@@ -52,78 +62,101 @@
 }
 
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.153 0.006 107.1);
+    --background: oklch(0.972 0.014 292);
+    --foreground: oklch(0.2 0.02 285);
     --card: oklch(1 0 0);
-    --card-foreground: oklch(0.153 0.006 107.1);
+    --card-foreground: oklch(0.2 0.02 285);
     --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.153 0.006 107.1);
-    --primary: oklch(0.527 0.154 150.069);
-    --primary-foreground: oklch(0.982 0.018 155.826);
-    --secondary: oklch(0.967 0.001 286.375);
-    --secondary-foreground: oklch(0.21 0.006 285.885);
-    --muted: oklch(0.966 0.005 106.5);
-    --muted-foreground: oklch(0.58 0.031 107.3);
-    --accent: oklch(0.966 0.005 106.5);
-    --accent-foreground: oklch(0.228 0.013 107.4);
+    --popover-foreground: oklch(0.2 0.02 285);
+    --primary: oklch(0.56 0.15 150);
+    --primary-foreground: oklch(0.99 0.01 155);
+    --secondary: oklch(0.945 0.03 292);
+    --secondary-foreground: oklch(0.32 0.07 292);
+    --muted: oklch(0.955 0.012 292);
+    --muted-foreground: oklch(0.5 0.03 285);
+    --accent: oklch(0.95 0.025 292);
+    --accent-foreground: oklch(0.28 0.05 292);
     --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.93 0.007 106.5);
-    --input: oklch(0.93 0.007 106.5);
-    --ring: oklch(0.737 0.021 106.9);
-    --chart-1: oklch(0.845 0.143 164.978);
-    --chart-2: oklch(0.696 0.17 162.48);
-    --chart-3: oklch(0.596 0.145 163.225);
-    --chart-4: oklch(0.508 0.118 165.612);
-    --chart-5: oklch(0.432 0.095 166.913);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.988 0.003 106.5);
-    --sidebar-foreground: oklch(0.153 0.006 107.1);
-    --sidebar-primary: oklch(0.627 0.194 149.214);
-    --sidebar-primary-foreground: oklch(0.982 0.018 155.826);
-    --sidebar-accent: oklch(0.966 0.005 106.5);
-    --sidebar-accent-foreground: oklch(0.228 0.013 107.4);
-    --sidebar-border: oklch(0.93 0.007 106.5);
-    --sidebar-ring: oklch(0.737 0.021 106.9);
+    --border: oklch(0.91 0.016 292);
+    --input: oklch(0.91 0.016 292);
+    --ring: oklch(0.7 0.08 292);
+    --chart-1: oklch(0.8 0.09 292);
+    --chart-2: oklch(0.72 0.12 292);
+    --chart-3: oklch(0.64 0.15 292);
+    --chart-4: oklch(0.56 0.15 150);
+    --chart-5: oklch(0.7 0.14 25);
+    --radius: 0.75rem;
+    --sidebar: oklch(0.995 0.004 292);
+    --sidebar-foreground: oklch(0.2 0.02 285);
+    --sidebar-primary: oklch(0.93 0.06 155);
+    --sidebar-primary-foreground: oklch(0.36 0.1 152);
+    --sidebar-accent: oklch(0.955 0.012 292);
+    --sidebar-accent-foreground: oklch(0.2 0.02 285);
+    --sidebar-border: oklch(0.92 0.014 292);
+    --sidebar-ring: oklch(0.7 0.08 292);
     --warning: oklch(0.769 0.165 70.08);
     --warning-foreground: oklch(0.414 0.112 45.904);
-    --glass: oklch(1 0 0 / 68%);
+    --glass: oklch(0.975 0.014 292 / 72%);
+    /* Pronark accents from the mockups: mint actions, lavender notes, peach highlights, ink doodles. */
+    --mint: oklch(0.93 0.06 155);
+    --mint-ink: oklch(0.36 0.1 152);
+    --lavender: oklch(0.94 0.035 292);
+    --lavender-ink: oklch(0.36 0.08 292);
+    --peach: oklch(0.955 0.04 70);
+    --peach-ink: oklch(0.45 0.1 55);
+    --ink: oklch(0.25 0.02 280);
+    --doodle-gold: oklch(0.87 0.15 95);
+    --doodle-mint: oklch(0.88 0.09 155);
+    --blob-a: oklch(0.89 0.055 292 / 0.7);
+    --blob-b: oklch(0.93 0.05 160 / 0.55);
 }
 
 .dark {
-    --background: oklch(0.153 0.006 107.1);
-    --foreground: oklch(0.988 0.003 106.5);
-    --card: oklch(0.228 0.013 107.4);
-    --card-foreground: oklch(0.988 0.003 106.5);
-    --popover: oklch(0.228 0.013 107.4);
-    --popover-foreground: oklch(0.988 0.003 106.5);
-    --primary: oklch(0.448 0.119 151.328);
-    --primary-foreground: oklch(0.982 0.018 155.826);
-    --secondary: oklch(0.274 0.006 286.033);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.286 0.016 107.4);
-    --muted-foreground: oklch(0.737 0.021 106.9);
-    --accent: oklch(0.286 0.016 107.4);
-    --accent-foreground: oklch(0.988 0.003 106.5);
+    --background: oklch(0.18 0.025 292);
+    --foreground: oklch(0.96 0.01 292);
+    --card: oklch(0.235 0.028 292);
+    --card-foreground: oklch(0.96 0.01 292);
+    --popover: oklch(0.235 0.028 292);
+    --popover-foreground: oklch(0.96 0.01 292);
+    --primary: oklch(0.66 0.15 150);
+    --primary-foreground: oklch(0.18 0.04 150);
+    --secondary: oklch(0.3 0.05 292);
+    --secondary-foreground: oklch(0.9 0.05 292);
+    --muted: oklch(0.27 0.025 292);
+    --muted-foreground: oklch(0.73 0.03 292);
+    --accent: oklch(0.3 0.04 292);
+    --accent-foreground: oklch(0.95 0.02 292);
     --destructive: oklch(0.704 0.191 22.216);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.58 0.031 107.3);
-    --chart-1: oklch(0.845 0.143 164.978);
-    --chart-2: oklch(0.696 0.17 162.48);
-    --chart-3: oklch(0.596 0.145 163.225);
-    --chart-4: oklch(0.508 0.118 165.612);
-    --chart-5: oklch(0.432 0.095 166.913);
-    --sidebar: oklch(0.228 0.013 107.4);
-    --sidebar-foreground: oklch(0.988 0.003 106.5);
-    --sidebar-primary: oklch(0.723 0.219 149.579);
-    --sidebar-primary-foreground: oklch(0.982 0.018 155.826);
-    --sidebar-accent: oklch(0.286 0.016 107.4);
-    --sidebar-accent-foreground: oklch(0.988 0.003 106.5);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.58 0.031 107.3);
+    --ring: oklch(0.6 0.08 292);
+    --chart-1: oklch(0.45 0.08 292);
+    --chart-2: oklch(0.55 0.12 292);
+    --chart-3: oklch(0.65 0.15 292);
+    --chart-4: oklch(0.66 0.15 150);
+    --chart-5: oklch(0.7 0.14 25);
+    --sidebar: oklch(0.21 0.028 292);
+    --sidebar-foreground: oklch(0.96 0.01 292);
+    --sidebar-primary: oklch(0.32 0.06 155);
+    --sidebar-primary-foreground: oklch(0.9 0.1 155);
+    --sidebar-accent: oklch(0.27 0.025 292);
+    --sidebar-accent-foreground: oklch(0.96 0.01 292);
+    --sidebar-border: oklch(1 0 0 / 8%);
+    --sidebar-ring: oklch(0.6 0.08 292);
     --warning: oklch(0.828 0.189 84.429);
     --warning-foreground: oklch(0.924 0.12 95.746);
-    --glass: oklch(0.228 0.013 107.4 / 62%);
+    --glass: oklch(0.2 0.028 292 / 70%);
+    --mint: oklch(0.32 0.06 155);
+    --mint-ink: oklch(0.88 0.1 155);
+    --lavender: oklch(0.29 0.05 292);
+    --lavender-ink: oklch(0.88 0.06 292);
+    --peach: oklch(0.3 0.04 60);
+    --peach-ink: oklch(0.9 0.07 70);
+    --ink: oklch(0.9 0.02 292);
+    --doodle-gold: oklch(0.8 0.14 90);
+    --doodle-mint: oklch(0.55 0.1 155);
+    --blob-a: oklch(0.3 0.07 292 / 0.55);
+    --blob-b: oklch(0.3 0.06 160 / 0.4);
 }
 
 @layer base {
@@ -197,3 +230,11 @@
 @keyframes pronark-drain { from { scale: 1 1; } to { scale: 0 1; } }
 @media (prefers-reduced-motion: reduce) { .drain-bar { display: none; } }
 :root[data-reduced-motion="true"] .drain-bar { display: none; }
+
+/* Soft color blobs behind app screens (the lavender/mint wash from the mockups). */
+.pronark-blobs { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.pronark-blobs::before, .pronark-blobs::after { content: ""; position: absolute; border-radius: 50%; filter: blur(70px); }
+.pronark-blobs::before { width: 48rem; height: 36rem; right: -16rem; top: -6rem; background: var(--blob-a); }
+.pronark-blobs::after { width: 40rem; height: 30rem; left: -18rem; bottom: -10rem; background: var(--blob-b); }
+.font-hand { font-family: "Caveat", "Bradley Hand", "Segoe Print", cursive; font-weight: 600; }
+

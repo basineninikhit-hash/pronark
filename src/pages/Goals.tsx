@@ -9,7 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Sheet, SheetFooter } from '@/components/sheet';
-import { EmptyState, FieldRow, Form, FormField, Meter, SectionHeading } from '@/components/pronark';
+import { EmptyState, FieldRow, Form, FormField, Meter, NotePanel, SectionHeading } from '@/components/pronark';
+import { SignpostDoodle } from '@/components/doodles';
 import { GoalTargetPlan } from '@/GoalTargetPlan';
 import { cn } from '@/lib/utils';
 import { cents, moneyPattern, type Allocation, type Category, type ItemAllocation, type RunAction, type Wish } from '@/lib/domain';
@@ -20,7 +21,7 @@ const goalOrder = ['Clothes', 'Tech', 'Jewelry', 'Home items', 'Experiences', 'T
 const goalIcons: Record<string, ComponentType<LucideProps>> = { Clothes: Shirt, Tech: Laptop, Jewelry: Gem, 'Home items': Sofa, Experiences: Ticket, Travel: Plane, Other: Ellipsis };
 function GoalIcon({ category, className }: { category: string; className?: string }) {
   const Icon = goalIcons[category] ?? Sparkles;
-  return <span className={cn('grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary', className)}><Icon className="size-5" strokeWidth={1.75} aria-hidden="true" /></span>;
+  return <span className={cn('grid size-10 shrink-0 place-items-center rounded-xl bg-lavender text-lavender-ink', className)}><Icon className="size-5" strokeWidth={1.75} aria-hidden="true" /></span>;
 }
 function rewardNotice(before: number, after: number, target: number, name: string) {
   if (target <= 0) return 'Savings assigned.';
@@ -55,14 +56,13 @@ export function GoalsPage({ client, owner, readOnly, balance, categories, wishes
   useLayoutEffect(() => { if (direction.current && !prefersReducedMotion()) { push.set(direction.current); push.to(0, { damping: 1, response: 0.4 }); } direction.current = 0; }, [selectedId, push]);
 
   return (
-    <div className="mx-auto w-full max-w-4xl">
+    <div className="w-full max-w-5xl">
       <div ref={viewRef} className="flex flex-col gap-5">
         {!selected ? (
           <>
-            <p className="max-w-2xl text-sm text-muted-foreground">Choose a reward goal of any amount—even more than your wallet holds. Assign the dollars you earn toward it whenever you want.</p>
             <Card>
               <CardContent className="flex flex-wrap items-center gap-4">
-                <span className="grid size-11 place-items-center rounded-xl bg-primary text-primary-foreground"><WalletIcon className="size-5" aria-hidden="true" /></span>
+                <span className="grid size-11 place-items-center rounded-full bg-mint text-mint-ink"><WalletIcon className="size-5" aria-hidden="true" /></span>
                 <div className="flex-1"><p className="text-xs text-muted-foreground">Wallet balance</p><p className="tabular text-2xl font-semibold tracking-tight">{cents(balance)}</p></div>
                 <div className="grid grid-cols-2 gap-x-6 gap-y-0.5 text-xs">
                   <span className="text-muted-foreground">Assigned</span><span className="text-muted-foreground">Available</span>
@@ -109,6 +109,7 @@ export function GoalsPage({ client, owner, readOnly, balance, categories, wishes
               })}
             </div>
             {!mine.length && <EmptyState>Categories are loading. If they stay empty, refresh the page.</EmptyState>}
+            <ControlNote />
           </>
         ) : (
           <>
@@ -153,22 +154,24 @@ export function GoalsPage({ client, owner, readOnly, balance, categories, wishes
             <section className="flex flex-col gap-3">
               <SectionHeading title={`Wishlist (${items.length})`} description="Items you’re saving for" action={!readOnly && <Button variant="secondary" onClick={() => setEditing(null)}><Plus data-icon="inline-start" />Add item</Button>} />
               {items.map((w) => (
-                <div key={w.id} className="flex flex-col gap-3 rounded-xl bg-card p-3.5 ring-1 ring-foreground/10 sm:flex-row sm:items-center">
-                  <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <GoalIcon category={selected.category_key} className="size-9" />
-                    <div className="min-w-0 flex-1">
-                      <strong className="block truncate text-sm font-semibold">{w.title}</strong>
-                      <span className="tabular text-xs text-muted-foreground">{cents(itemSaved(w.id))} of {cents(w.estimated_cents)} assigned · {percent(itemSaved(w.id), w.estimated_cents)}%</span>
-                      <Meter value={itemSaved(w.id)} max={w.estimated_cents} className="mt-1.5" />
+                <div key={w.id} className="flex flex-col gap-4 rounded-2xl bg-card p-4 ring-1 ring-foreground/8 sm:flex-row sm:items-center">
+                  <span className="grid h-28 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-lavender to-peach text-ink sm:w-36"><GoalIcon category={selected.category_key} className="size-14 bg-card/70 [&_svg]:size-7" /></span>
+                  <div className="flex min-w-0 flex-1 flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <strong className="truncate text-lg font-semibold">{w.title}</strong>
+                      {!readOnly && <Button variant="ghost" size="icon-sm" aria-label={'Edit ' + w.title} onClick={() => setEditing(w)}><Pencil /></Button>}
                     </div>
+                    <div className="flex items-center gap-3">
+                      <Meter value={itemSaved(w.id)} max={w.estimated_cents} className="h-2.5 flex-1" label={`${percent(itemSaved(w.id), w.estimated_cents)}% assigned`} />
+                      <span className="tabular shrink-0 text-sm text-muted-foreground">{cents(itemSaved(w.id))} / {cents(w.estimated_cents)}</span>
+                    </div>
+                    {!readOnly && (
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" className="flex-1" disabled={busy || !itemAllocationReady} onClick={() => setItemFund(w)}>Assign from wallet</Button>
+                        <Button variant="ghost" disabled={busy} onClick={() => setBuying(w)}>Record purchase</Button>
+                      </div>
+                    )}
                   </div>
-                  {!readOnly && (
-                    <div className="flex gap-1.5">
-                      <Button variant="outline" size="sm" disabled={busy || !itemAllocationReady} onClick={() => setItemFund(w)}>Assign</Button>
-                      <Button variant="outline" size="sm" disabled={busy} onClick={() => setBuying(w)}>Record purchase</Button>
-                      <Button variant="ghost" size="icon-sm" aria-label={'Edit ' + w.title} onClick={() => setEditing(w)}><Pencil /></Button>
-                    </div>
-                  )}
                 </div>
               ))}
               {!items.length && <EmptyState>No items yet. {!readOnly && 'Add an item to save toward a specific reward.'}</EmptyState>}
@@ -178,7 +181,7 @@ export function GoalsPage({ client, owner, readOnly, balance, categories, wishes
                   {wishes.filter((w) => w.category_id === selected.id && w.status === 'purchased').map((w) => <p key={w.id} className="inline-flex items-center gap-1.5 text-sm"><Sparkles className="size-3.5 text-warning" aria-hidden="true" />{w.title} · Purchased</p>)}
                 </div>
               )}
-              <p className="flex gap-2 text-xs text-muted-foreground"><Info className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />Assigning earned dollars tracks your progress; it does not spend them. Your funds stay in your wallet until a purchase.</p>
+              <ControlNote />
             </section>
             <GoalTargetPlan key={selected.id} client={client} categoryId={selected.id} today={today} readOnly={readOnly} />
           </>
@@ -292,3 +295,13 @@ function GoalPurchaseForm({ item, today, balance, assigned, busy, onClose, onSav
     </Form>
   );
 }
+
+/** "You're in control." note from the goals mockup. */
+function ControlNote() {
+  return (
+    <NotePanel icon={<SignpostDoodle />} title="You’re in control.">
+      Checking off habits adds to your wallet. You choose when and how much to assign to each goal. Assigning tracks progress; it doesn’t spend anything, and nothing is assigned automatically.
+    </NotePanel>
+  );
+}
+

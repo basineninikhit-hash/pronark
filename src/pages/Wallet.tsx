@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { ChevronRight, Coins, Plus, Receipt, Sparkles } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { ChevronRight, CirclePlus, Coins, Receipt, ShoppingBag, Sparkles, Star, Wallet as WalletIcon } from 'lucide-react';
+import { CoinsDoodle, GiftBoxDoodle, Sparkle } from '@/components/doodles';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -21,22 +22,40 @@ export function WalletPage({ readOnly, today, earned, spent, balance, earnings, 
     ...purchases.map((x) => ({ key: 'p' + x.id, date: x.purchase_date, label: x.title, amount: -x.amount_cents, purchase: x })),
   ].sort((a, b) => b.date.localeCompare(a.date));
   const close = () => setOpen(false);
+  const latest = [...purchases].sort((a, b) => b.purchase_date.localeCompare(a.purchase_date))[0];
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
-      <p className="text-sm text-muted-foreground">Small steps. A healthier, happier you.</p>
-      <section className="overflow-hidden rounded-2xl bg-primary p-5 text-primary-foreground md:p-6">
-        <p className="text-sm text-primary-foreground/80">Available balance</p>
-        <AnimatedNumber value={balance} format={cents} className="text-display mt-1 block" />
-        <div className="mt-5 grid grid-cols-2 gap-3 border-t border-primary-foreground/15 pt-4">
-          <div><p className="text-xs text-primary-foreground/75">Total earned</p><p className="tabular text-lg font-semibold">{cents(earned)}</p></div>
-          <div><p className="text-xs text-primary-foreground/75">Total spent</p><p className="tabular text-lg font-semibold">{cents(spent)}</p></div>
-        </div>
-      </section>
+    <div className="flex w-full max-w-6xl flex-col gap-5">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <MoneyCard tone="mint" icon={<CoinsDoodle />} label="Available in wallet" value={balance} hint="Ready to use for your rewards." />
+        <MoneyCard tone="lavender" icon={<Star className="size-9" strokeWidth={1.75} />} label="Total earned" value={earned} hint="From your habit progress." />
+        <MoneyCard tone="peach" icon={<WalletIcon className="size-9" strokeWidth={1.75} />} label="Total spent" value={spent} hint="On rewards you chose." />
+      </div>
       {balance < 0 && (
         <Alert variant="warning"><AlertDescription>Your in-app wallet is {cents(-balance)} below zero. Pronark is meant to reward waiting and saving—not buying ahead. Normal activity rewards first repay the shortfall, while streak bonuses pause until your balance is positive. This is not real debt.</AlertDescription></Alert>
       )}
-      {!readOnly && <Button size="lg" className="self-start" onClick={() => { setEdit(null); setOpen(true); }}><Plus data-icon="inline-start" />Record purchase</Button>}
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <Card>
+          <CardContent className="flex flex-col gap-3">
+            <SectionHeading title={<span className="inline-flex items-center gap-2"><ShoppingBag className="size-4" aria-hidden="true" />Recent purchase</span>} />
+            {latest ? (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-4">
+                  <span className="grid size-20 shrink-0 place-items-center rounded-2xl bg-peach text-ink"><GiftBoxDoodle className="size-12" /></span>
+                  <div className="min-w-0">
+                    <strong className="block truncate text-lg font-semibold">{latest.title}</strong>
+                    <span className="tabular text-xl font-bold">{cents(latest.amount_cents)}</span>
+                    <small className="block text-xs text-muted-foreground">{formatDate(latest.purchase_date, { month: 'short', day: 'numeric', year: 'numeric' })}</small>
+                  </div>
+                  {!readOnly && <Button variant="ghost" size="sm" className="ml-auto self-start" onClick={() => { setEdit(latest); setOpen(true); }}>Edit</Button>}
+                </div>
+                {latest.note && <p className="rounded-xl bg-lavender px-3 py-2 text-sm text-lavender-ink">“{latest.note}”</p>}
+              </div>
+            ) : <EmptyState icon={<GiftBoxDoodle className="size-12 text-ink" />}>No purchases yet. When you treat yourself, record it here.</EmptyState>}
+          </CardContent>
+        </Card>
+        {!readOnly && <QuickPurchase today={today} balance={balance} busy={busy} onRun={onRun} />}
+      </div>
       <Card>
         <CardContent className="flex flex-col gap-2">
           <SectionHeading title="Recent activity" action={entries.length > 3 && <Button variant="ghost" size="sm" onClick={() => setShowAll(!showAll)}>{showAll ? 'Show less' : 'See all'}</Button>} />
@@ -106,3 +125,45 @@ function PurchaseForm({ purchase, today, balance, busy, error, onClose, onSave, 
     </Form>
   );
 }
+
+function MoneyCard({ tone, icon, label, value, hint }: { tone: 'mint' | 'lavender' | 'peach'; icon: ReactNode; label: string; value: number; hint: string }) {
+  return (
+    <div className={cn('flex items-center gap-4 rounded-2xl p-4', tone === 'mint' ? 'bg-mint text-mint-ink' : tone === 'lavender' ? 'bg-lavender text-lavender-ink' : 'bg-peach text-peach-ink')}>
+      <span className="shrink-0 text-ink" aria-hidden="true">{icon}</span>
+      <div className="min-w-0">
+        <p className="text-xs font-medium opacity-80">{label}</p>
+        <AnimatedNumber value={value} format={cents} className="text-2xl font-bold tracking-tight text-foreground" />
+        <p className="text-[0.6875rem] opacity-80">{hint}</p>
+      </div>
+    </div>
+  );
+}
+
+/** Inline "Record a new purchase" card from the rewards mockup. Editing still uses the sheet. */
+function QuickPurchase({ today, balance, busy, onRun }: { today: string; balance: number; busy: boolean; onRun: RunAction }) {
+  const [title, setTitle] = useState(''), [amount, setAmount] = useState(''), [date, setDate] = useState(today), [requestId, setRequestId] = useState(() => crypto.randomUUID());
+  const amountCents = Math.round(Number(amount) * 100), valid = title.trim() && moneyPattern.test(amount) && Number(amount) > 0 && date <= today, projected = balance - amountCents;
+  async function add() {
+    if (projected < 0 && !confirm('Record this purchase despite the negative wallet warning?')) return;
+    const ok = await onRun(() => rpc('save_purchase', { p_id: requestId, p_title: title.trim(), p_amount_cents: amountCents, p_date: date, p_note: '', p_wishlist: null, p_expected_revision: null }), 'Purchase saved. Enjoy it!');
+    if (ok) { setTitle(''); setAmount(''); setDate(today); setRequestId(crypto.randomUUID()); }
+  }
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-3">
+        <div className="flex items-start justify-between gap-3">
+          <SectionHeading title={<span className="inline-flex items-center gap-2"><CirclePlus className="size-4" aria-hidden="true" />Record a new purchase</span>} description="Log a reward you picked for yourself using funds from your wallet." />
+          <Sparkle className="size-7 shrink-0 text-ink" />
+        </div>
+        <FormField label="What did you get?"><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Book, Coffee, Movie" /></FormField>
+        <FieldRow>
+          <FormField label="Amount ($)"><Input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" /></FormField>
+          <FormField label="Date"><Input type="date" max={today} value={date} onChange={(e) => setDate(e.target.value)} /></FormField>
+        </FieldRow>
+        {valid && projected < 0 && <Alert variant="warning"><AlertDescription>This would put your in-app wallet {cents(-projected)} below zero. Normal activity rewards repay a deficit; streak bonuses pause until your balance is positive.</AlertDescription></Alert>}
+        <Button size="lg" disabled={busy || !valid} onClick={add}>Add purchase</Button>
+      </CardContent>
+    </Card>
+  );
+}
+

@@ -1,9 +1,9 @@
 import { useState, type ReactNode } from 'react';
 import { ArrowRight, ArrowUp, ArrowUpRight, Check, ChevronLeft, ChevronRight } from 'lucide-react';
-import '@fontsource/caveat/600.css';
 import './welcome.css';
 import { AnimatedNumber, ErrorText, Logo } from '@/components/pronark';
 import { cn } from '@/lib/utils';
+import { Burst, ClipboardDoodle, CoinsDoodle, CoinsIcon, CurlyArrow, GiftDoodle, LoopArrow, Sparkle, SproutDoodle } from '@/components/doodles';
 
 const sources = {
   spending: 'https://institute.bankofamerica.com/economic-insights/generational-spending-update.html',
@@ -18,35 +18,6 @@ const demoHabits = [
   { title: 'Plan my day', cents: 25 },
 ];
 const SAMPLE_WALLET = 1165;
-
-/* ---------- hand-drawn doodles (strokes follow the text color; gold and mint accents) ---------- */
-const ink = { fill: 'none', stroke: 'currentColor', strokeWidth: 2.2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
-const filled = (color: string) => ({ ...ink, fill: color });
-function Sparkle({ className }: { className?: string }) {
-  return <svg viewBox="0 0 48 48" className={className} aria-hidden="true"><path d="M20 6c2 10 5 13 15 15-10 2-13 5-15 15-2-10-5-13-15-15 10-2 13-5 15-15z" {...filled('var(--doodle-gold)')} /><path d="M38 6l1 4M44 14l-4 1M41 38c1 3 2 4 5 5-3 1-4 2-5 5-1-3-2-4-5-5 3-1 4-2 5-5z" {...ink} /></svg>;
-}
-function Burst({ className }: { className?: string }) {
-  return <svg viewBox="0 0 40 40" className={className} aria-hidden="true"><path d="M8 10l7 6M6 22h9M10 33l6-5" {...ink} /></svg>;
-}
-function CurlyArrow({ className }: { className?: string }) {
-  return <svg viewBox="0 0 80 50" className={className} aria-hidden="true"><path d="M76 34C60 40 40 38 30 26 24 18 26 9 33 8c8-1 8 12-2 15-9 3-21-1-27-9" {...ink} /><path d="M3 4l1 11 10-3" {...ink} /></svg>;
-}
-function LoopArrow({ className }: { className?: string }) {
-  return <svg viewBox="0 0 50 70" className={className} aria-hidden="true"><path d="M8 6c26 4 38 22 30 42-3 8-10 14-18 16" {...ink} /><path d="M24 56l-6 8 9 3" {...ink} /></svg>;
-}
-function ClipboardDoodle() {
-  return <svg viewBox="0 0 64 64" className="size-14 shrink-0" aria-hidden="true"><rect x="12" y="12" width="40" height="46" rx="6" {...ink} /><rect x="22" y="7" width="20" height="10" rx="3" {...filled('var(--doodle-mint)')} /><path d="M21 37l8 8 15-17" {...ink} strokeWidth={3} /><path d="M50 4l2 4M56 10l-4 1" {...ink} /></svg>;
-}
-function CoinsDoodle() {
-  return <svg viewBox="0 0 64 64" className="size-14 shrink-0" aria-hidden="true">{[44, 35, 26].map((y, i) => { const x = i === 1 ? 36 : 30; return <g key={y}><path d={`M${x - 17} ${y}v6c0 4 8 6.5 17 6.5s17-2.5 17-6.5v-6`} {...filled('var(--doodle-gold)')} /><ellipse cx={x} cy={y} rx="17" ry="6.5" {...filled('var(--doodle-gold)')} /></g>; })}<path d="M50 8l1 5M56 14l-4 1" {...ink} /></svg>;
-}
-function GiftDoodle() {
-  return <svg viewBox="0 0 64 64" className="size-14 shrink-0" aria-hidden="true"><rect x="12" y="28" width="40" height="28" rx="3" {...ink} /><rect x="9" y="20" width="46" height="10" rx="3" {...filled('var(--doodle-mint)')} /><path d="M32 20v36M32 20c-6-9-16-9-14-2 1 4 9 3 14 2zm0 0c6-9 16-9 14-2-1 4-9 3-14 2z" {...ink} /><path d="M50 6l1 5M56 12l-4 1" {...ink} /></svg>;
-}
-function SproutDoodle({ className }: { className?: string }) {
-  return <svg viewBox="0 0 64 80" className={className} aria-hidden="true"><path d="M32 74V38" {...ink} /><path d="M32 46c-14 0-20-10-20-20 12 0 20 8 20 20zM32 40c0-14 8-24 22-24 0 14-8 24-22 24z" {...filled('var(--doodle-mint)')} /><path d="M18 74h28" {...ink} /></svg>;
-}
-const CoinsIcon = () => <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><ellipse cx="9" cy="7" rx="6" ry="2.5" /><path d="M3 7v4c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V7" /><path d="M9 13.5v4c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5v-4c0-1.4-2.7-2.5-6-2.5" /></svg>;
 
 /* ---------- interactive "Today's habits" card ---------- */
 function HabitsCard() {

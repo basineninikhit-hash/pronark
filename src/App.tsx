@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Sheet, SheetFooter } from '@/components/sheet';
 import { Segmented } from '@/components/segmented';
 import { Logo } from '@/components/pronark';
+import { Burst, GiftBoxDoodle, PlantPotDoodle, Sparkle, SunDoodle } from '@/components/doodles';
 import { CompanionCharacter, companionReact, toCharacterStyle } from '@/components/companion-character';
 import { GoalsForm, KpiLogForm, TaskForm, TemplateForm } from '@/components/editors';
 import { useSlidingIndicator } from '@/components/sliding-indicator';
@@ -45,7 +46,18 @@ const InsightsPage = named(() => import('@/pages/Insights'), 'InsightsPage');
 
 const navIcons: Record<View, ComponentType<LucideProps>> = { Home: House, Calendar: CalendarDays, Insights: ChartColumn, Goals: Target, Wallet: Gift, Groups: Users, Profile: UserRound, Settings: SettingsIcon };
 const navLabel = (v: View) => (v === 'Wallet' ? 'Rewards' : v);
-const pageTitles: Record<View, string> = { Home: 'Your daily wins', Calendar: 'Your consistency', Insights: 'Your insights', Goals: 'Your goals', Wallet: 'Your rewards', Groups: 'Your groups', Profile: 'Your profile', Settings: 'Group and settings' };
+const pageTitles: Record<View, string> = { Home: 'Your daily wins', Calendar: 'Your habit calendar', Insights: 'Your insights', Goals: 'My wishlist goals', Wallet: 'Your rewards', Groups: 'Your groups', Profile: 'Your profile', Settings: 'Settings' };
+const pageSubtitles: Record<View, string> = {
+  Home: 'Small steps today. Bigger tomorrows.',
+  Calendar: 'See your progress, build consistency, and make it yours.',
+  Insights: 'Spot patterns, celebrate progress, and make small improvements.',
+  Goals: 'Use your wallet to fund the things you want. Assign funds whenever you’re ready.',
+  Wallet: 'Use your earned funds for the things that motivate you.',
+  Groups: 'Share your progress with people you trust.',
+  Profile: 'Your name, monthly goals and companion.',
+  Settings: 'Notifications, invitations and your account.',
+};
+const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; };
 const sidebarViews: View[] = ['Home', 'Calendar', 'Insights', 'Goals', 'Wallet', 'Groups', 'Profile'];
 const tabViews: View[] = ['Home', 'Calendar', 'Insights', 'Goals', 'Wallet', 'Profile'];
 
@@ -268,13 +280,14 @@ export function App() {
   );
 
   return (
-    <div className="flex min-h-dvh bg-muted/30">
+    <div className="relative flex min-h-dvh bg-background">
+      <div aria-hidden="true" className="pronark-blobs" />
       <Sidebar page={page} onPage={go} />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <AppBar title={pageTitles[page]} accountMenu={accountMenu}
+      <div className="relative z-10 flex min-w-0 flex-1 flex-col">
+        <AppBar title={page === 'Home' ? `${greeting()}, ${(ownerProfile.display_name || 'there').split(' ')[0]}!` : pageTitles[page]} subtitle={pageSubtitles[page]} decoration={page === 'Home' ? <SunDoodle className="size-10 text-ink" /> : page === 'Wallet' ? <span className="relative text-ink"><GiftBoxDoodle className="size-14" /><Sparkle className="absolute -top-1 -left-7 size-6" /></span> : page === 'Insights' ? <PlantPotDoodle className="h-12 w-11 text-ink" /> : page === 'Calendar' || page === 'Groups' ? <Burst className="size-8 text-ink" /> : null} accountMenu={accountMenu}
           switcher={<Segmented label="Me or groups" value={page === 'Groups' ? 'groups' : 'me'} onChange={(v) => { setPerson(own); go(v === 'groups' ? 'Groups' : 'Home'); }}
             options={[{ value: 'me', label: 'Me' }, { value: 'groups', label: 'Groups' }]} />} />
-        <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-4 overflow-x-clip px-4 pt-2 pb-32 md:px-8 md:pt-4 md:pb-12">
+        <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col gap-4 overflow-x-clip px-4 pt-2 pb-32 md:px-8 md:pt-2 md:pb-12">
           {readOnly && <Alert variant="info"><AlertDescription>Viewing partner · Read-only</AlertDescription></Alert>}
           {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
           <Suspense fallback={<PageSkeleton />}>
@@ -301,7 +314,7 @@ export function App() {
           {page === 'Wallet' && (
             <>
               <WalletPage readOnly={readOnly} today={today} earned={totalEarned} spent={totalSpent} balance={balance} earnings={ownerEarnings} purchases={ownerPurchases} busy={busy} error={error} onRun={run} />
-              {!readOnly && <div className="mx-auto w-full max-w-3xl"><ReceiptCapture client={supabase} today={today} purchases={ownerPurchases} onSaved={refresh} /></div>}
+              {!readOnly && <div className="w-full max-w-6xl"><ReceiptCapture client={supabase} today={today} purchases={ownerPurchases} onSaved={refresh} /></div>}
             </>
           )}
           {page === 'Profile' && (
@@ -433,8 +446,8 @@ function Sidebar({ page, onPage }: { page: View; onPage: (view: View) => void })
     );
   };
   return (
-    <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-3 py-5 md:flex">
-      <div className="mx-2 mb-6"><Logo className="h-20" /></div>
+    <aside className="sticky top-0 z-20 hidden h-dvh w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar/80 px-3 py-5 backdrop-blur md:flex">
+      <div className="mx-2 mb-7 flex items-center gap-2"><Logo variant="mark" className="h-9" /><span className="text-lg font-bold tracking-tight">Pronark</span></div>
       <nav ref={navRef} aria-label="Main navigation" className="relative flex flex-1 flex-col gap-0.5">
         <span ref={indicatorRef} aria-hidden="true" className="absolute top-0 left-0 rounded-lg bg-sidebar-primary shadow-sm" />
         {sidebarViews.map(item)}
@@ -445,14 +458,15 @@ function Sidebar({ page, onPage }: { page: View; onPage: (view: View) => void })
   );
 }
 
-/** Translucent top bar. On phones it shows the logo, then the page title once the large title scrolls under it. */
-function AppBar({ title, switcher, accountMenu }: { title: string; switcher: ReactNode; accountMenu: ReactNode }) {
+/** Translucent top bar plus the page's large title and subtitle. The compact title fades into
+ *  the bar once the large title scrolls under it (on every screen size). */
+function AppBar({ title, subtitle, decoration, switcher, accountMenu }: { title: string; subtitle: string; decoration?: ReactNode; switcher: ReactNode; accountMenu: ReactNode }) {
   const sentinel = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     const node = sentinel.current;
     if (!node) return;
-    const observer = new IntersectionObserver(([entry]) => setScrolled(!entry.isIntersecting), { rootMargin: '-56px 0px 0px 0px' });
+    const observer = new IntersectionObserver(([entry]) => setScrolled(!entry.isIntersecting), { rootMargin: '-64px 0px 0px 0px' });
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
@@ -461,20 +475,21 @@ function AppBar({ title, switcher, accountMenu }: { title: string; switcher: Rea
       <header className={cn('sticky top-0 z-40 pt-[env(safe-area-inset-top)] transition-[background-color,box-shadow] duration-200', scrolled ? 'glass shadow-[0_1px_0_var(--border)]' : 'bg-transparent')}>
         <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-3 px-4 md:h-16 md:px-8">
           <span className={cn('transition-opacity duration-200 md:hidden', scrolled && 'opacity-0')}><Logo variant="mark" className="h-9" /></span>
-          <span aria-hidden={!scrolled} className={cn('absolute left-1/2 -translate-x-1/2 text-sm font-semibold transition-opacity duration-200 md:static md:translate-x-0 md:text-base', scrolled ? 'opacity-100' : 'opacity-0 md:opacity-100')}>
-            <span className="md:hidden">{title}</span>
-            <span className="hidden text-title md:inline">{title}</span>
-          </span>
+          <span aria-hidden={!scrolled} className={cn('absolute left-1/2 -translate-x-1/2 text-sm font-semibold transition-opacity duration-200 md:static md:translate-x-0 md:text-base', scrolled ? 'opacity-100' : 'opacity-0')}>{title}</span>
           <div className="ml-auto flex items-center gap-2">
             <div className="hidden md:block">{switcher}</div>
             {accountMenu}
           </div>
         </div>
       </header>
-      <div className="px-4 pb-3 md:hidden">
-        <h1 className="text-display">{title}</h1>
+      <div className="relative z-10 mx-auto flex w-full max-w-6xl items-end justify-between gap-4 px-4 pb-4 md:px-8 md:pb-5">
+        <div className="min-w-0">
+          <h1 className="text-display font-bold">{title}</h1>
+          <p className="mt-1.5 text-sm text-muted-foreground md:text-base">{subtitle}</p>
+        </div>
+        {decoration && <div aria-hidden="true" className="hidden shrink-0 pb-1 sm:block">{decoration}</div>}
       </div>
-      <div ref={sentinel} aria-hidden="true" className="h-px md:hidden" />
+      <div ref={sentinel} aria-hidden="true" className="h-px" />
     </>
   );
 }
@@ -486,13 +501,13 @@ function TabBar({ page, onPage }: { page: View; onPage: (view: View) => void }) 
   return (
     <nav aria-label="Mobile navigation" className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 md:hidden">
       <div ref={barRef} className="glass relative grid grid-cols-6 rounded-[1.75rem] p-1.5 shadow-[0_12px_32px_-12px_rgb(0_0_0/0.35)] ring-1 ring-foreground/10">
-        <span ref={indicatorRef} aria-hidden="true" className="absolute top-0 left-0 rounded-[1.375rem] bg-primary/12 dark:bg-primary/25" />
+        <span ref={indicatorRef} aria-hidden="true" className="absolute top-0 left-0 rounded-[1.375rem] bg-mint" />
         {tabViews.map((v) => {
           const Icon = navIcons[v];
           return (
             <button key={v} type="button" data-active={page === v} aria-current={page === v ? 'page' : undefined} onClick={() => onPage(v)}
               className={cn('relative z-10 flex flex-col items-center gap-0.5 rounded-[1.375rem] py-2 text-[0.625rem] font-medium transition-[color,scale] duration-100 active:scale-90',
-                page === v ? 'text-primary dark:text-foreground' : 'text-muted-foreground')}>
+                page === v ? 'text-mint-ink' : 'text-muted-foreground')}>
               <Icon className="size-5" strokeWidth={page === v ? 2.25 : 1.75} aria-hidden="true" />
               {navLabel(v)}
             </button>
