@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ArrowDown, ArrowUp, ChevronRight, Flame, Info, Pencil, Plus, Wallet as WalletIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -16,6 +16,8 @@ type HomeProps = {
   earnedToday: number; earnedWeek: number; earnedMonth: number; balance: number; bonusProgress: BonusProgress[]; bonusProgressReady: boolean;
   busy: boolean; readOnly: boolean; onToggle: (task: Task, date: string) => Promise<boolean>; onLog: (task: Task, date: string) => void;
   onAdd: () => void; onDetails: (task: Task) => void; onWallet: () => void;
+  /** Shown under the greeting, e.g. the getting-started checklist. */
+  intro?: ReactNode;
 };
 
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; };
@@ -41,7 +43,10 @@ export function HomePage(props: HomeProps) {
     setPending((p) => { const { [t.id]: _, ...rest } = p; return rest; });
   }
 
-  const message = due.length && done === due.length ? 'Amazing work! Every win counts today.' : `Nice work, ${first}! ${done} of ${due.length} wins today.`;
+  const message = due.length && done === due.length ? 'Amazing work! Every win counts today.'
+    : !due.length ? `Rest day, ${first}. Recharge and come back tomorrow.`
+    : done === 0 ? `Ready when you are, ${first}! ${due.length} win${due.length === 1 ? '' : 's'} on the list today.`
+    : `Nice work, ${first}! ${done} of ${due.length} wins today.`;
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
@@ -64,6 +69,8 @@ export function HomePage(props: HomeProps) {
           <Button variant="ghost" onClick={props.onWallet} className="text-primary">View wallet <ChevronRight data-icon="inline-end" /></Button>
         </div>
       </section>
+
+      {props.intro}
 
       <div className="grid grid-cols-3 gap-2.5">
         <StatTile label="This week" value={cents(props.earnedWeek)} />

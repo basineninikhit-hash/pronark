@@ -12,6 +12,7 @@ import { Segmented } from '@/components/segmented';
 import { CompanionArt, logoSrc } from '@/components/pronark';
 import { GoalsForm, KpiLogForm, TaskForm, TemplateForm } from '@/components/editors';
 import { useSlidingIndicator } from '@/components/sliding-indicator';
+import { OnboardingChecklist } from '@/components/onboarding-checklist';
 import { cn } from '@/lib/utils';
 import { setAppReducedMotion } from '@/lib/motion';
 import { errorText, rpc, supabase, vapidPublicKey } from '@/lib/supabase';
@@ -58,7 +59,7 @@ export function App() {
   const [editor, setEditor] = useState<Task | null | undefined>(undefined), [details, setDetails] = useState<Task | null>(null), [templateTask, setTemplateTask] = useState<Task | null>(null), [goalsEditor, setGoalsEditor] = useState(false), [kpiEntry, setKpiEntry] = useState<{ task: Task; date: string } | null>(null);
   const [presentations, setPresentations] = useState<ChecklistPresentation[]>([]), [taskPeriods, setTaskPeriods] = useState<TaskPeriod[]>([]), [presentationReady, setPresentationReady] = useState(false);
   const [onboardingProgress, setOnboardingProgress] = useState<OnboardingRow | null>(null), [onboardingReady, setOnboardingReady] = useState(false), [experiencePrefs, setExperiencePrefs] = useState<ExperienceRow[]>([]);
-  const [tourOpen, setTourOpen] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false), [guideHidden, setGuideHidden] = useState(false);
   const [invite, setInvite] = useState(''), [issued, setIssued] = useState(''), [pushStatus, setPushStatus] = useState('Not checked');
   const [companion, setCompanion] = useState<Companion>('robot'), [recapMonth, setRecapMonth] = useState<string | null>(null), [celebration, setCelebration] = useState(''), [insightsView, setInsightsView] = useState<'consistency' | 'progress'>('consistency');
   const today = eastDate(), month = monthStart(today), own = session?.user.id ?? '', owner = person || own, readOnly = owner !== own;
@@ -74,6 +75,7 @@ export function App() {
   useEffect(() => { if (!own) return; const saved = localStorage.getItem('pronark-companion:' + own); setCompanion(companionOptions.some((x) => x.id === saved) ? (saved as Companion) : 'robot'); }, [own]);
   useEffect(() => { const saved = experiencePrefs.find((x) => x.owner_id === own); if (saved) setCompanion(saved.companion); }, [own, experiencePrefs]);
   useEffect(() => { setAppReducedMotion(!!ownExperience?.reduced_motion); }, [ownExperience?.reduced_motion]);
+  useEffect(() => { setGuideHidden(!!own && localStorage.getItem('pronark-getting-started-hidden:' + own) === '1'); }, [own]);
   useEffect(() => {
     if (!dataReady || !ownProfile?.setup_completed_at || !own) return;
     const d = new Date(today + 'T12:00:00Z'); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - 1);
@@ -233,6 +235,21 @@ export function App() {
   const templateSetting = templateTask ? settingFor(settings, templateTask.id, today) : undefined;
   const kpiForEntry = kpiEntry ? activityKpis.find((k) => k.task_id === kpiEntry.task.id) : undefined;
 
+  // Getting started: each step completes itself from the member's own records.
+  const ownTaskIds = new Set(tasks.filter((t) => t.owner_id === own).map((t) => t.id));
+  const firstTask = tasks.find((t) => t.owner_id === own && !t.archive_date);
+  const gettingStarted = [
+    { id: 'profile', title: 'Set up your profile', isCompleted: !!ownProfile.setup_completed_at },
+    { id: 'activity', title: 'Add your first activity', isCompleted: ownTaskIds.size > 0, description: 'Pick a habit you want to build and give it a reward.', actionLabel: 'Add', onAction: () => setEditor(null) },
+    { id: 'checkoff', title: 'Check off your first activity', isCompleted: completions.some((c) => c.completed && ownTaskIds.has(c.task_id)), description: 'Tap the box next to something you did today.', actionLabel: 'Show me',
+      onAction: () => document.getElementById('checklist-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
+    { id: 'goal', title: 'Set a savings goal', isCompleted: categories.some((c) => c.owner_id === own && (c.general_target_cents ?? 0) > 0) || wishes.some((w) => w.owner_id === own), description: 'Choose something you’re saving toward, like a trip or new shoes.', actionLabel: 'Open goals', onAction: () => go('Goals') },
+    { id: 'number', title: 'Track a number, like steps or water', isCompleted: activityKpis.some((k) => k.owner_id === own), description: 'Turn on “Track a measurable goal” when editing an activity.', actionLabel: 'Set it up',
+      onAction: () => (firstTask ? setEditor(firstTask) : setEditor(null)) },
+    { id: 'group', title: 'Invite someone to a group', isCompleted: memberships.some((m) => m.user_id !== own), description: 'Share progress with a partner, family or friends.', actionLabel: 'Open groups', onAction: () => go('Groups') },
+  ];
+  const hideGuide = () => { localStorage.setItem('pronark-getting-started-hidden:' + own, '1'); setGuideHidden(true); };
+
   const accountMenu = (
     <DropdownMenu>
       <DropdownMenuTrigger render={<Button variant="ghost" className="gap-2 rounded-full pr-2 pl-1" />}>
@@ -269,7 +286,8 @@ export function App() {
             settings={settings} completions={completions} kpis={ownerKpis} kpiLogs={ownerKpiLogs} today={today}
             earnedToday={earnedOn(today, today)} earnedWeek={earnedOn(weekStart, today)} earnedMonth={earnedOn(month, today)} balance={balance}
             bonusProgress={bonusProgress.filter((p) => p.owner_id === owner)} bonusProgressReady={bonusProgressReady} busy={busy} readOnly={readOnly}
-            onToggle={toggle} onLog={(task, date) => setKpiEntry({ task, date })} onAdd={() => setEditor(null)} onDetails={setDetails} onWallet={() => go('Wallet')} />}
+            onToggle={toggle} onLog={(task, date) => setKpiEntry({ task, date })} onAdd={() => setEditor(null)} onDetails={setDetails} onWallet={() => go('Wallet')}
+            intro={!readOnly && !guideHidden && <OnboardingChecklist steps={gettingStarted} onDismiss={hideGuide} />} />}
           {page === 'Calendar' && <CalendarPage owner={owner} tasks={tasks} settings={settings} completions={completions} kpis={ownerKpis} kpiLogs={ownerKpiLogs} earnings={ownerEarnings} today={today} readOnly={readOnly} busy={busy} toggle={toggle} onLog={(task, date) => setKpiEntry({ task, date })} />}
           {page === 'Insights' && (
             <InsightsPage view={insightsView} onView={setInsightsView}>
