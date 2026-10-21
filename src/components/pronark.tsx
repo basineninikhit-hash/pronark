@@ -7,7 +7,19 @@ import { companionOptions, weekdays, type Companion } from '@/lib/domain';
 import { prefersReducedMotion, useSpring } from '@/lib/motion';
 
 const asset = (name: string) => import.meta.env.BASE_URL + name;
-export const logoSrc = asset('pronark-logo-transparent.png');
+/**
+ * Pronark logo. `full` is the arch with the PRONARK wordmark; `mark` is the arch alone for
+ * tight spaces. Dark mode swaps in the cream version (the gold sun stays gold).
+ */
+export function Logo({ variant = 'full', className }: { variant?: 'full' | 'mark'; className?: string }) {
+  const name = variant === 'full' ? 'pronark-logo' : 'pronark-mark';
+  return (
+    <picture>
+      <source srcSet={asset(name + '-dark.png')} media="(prefers-color-scheme: dark)" />
+      <img src={asset(name + '.png')} alt="Pronark" className={cn('w-auto object-contain', className)} />
+    </picture>
+  );
+}
 export const robotSrc = asset('pronark-companion-robot.png');
 
 const activityIcons: [RegExp, ComponentType<LucideProps>][] = [

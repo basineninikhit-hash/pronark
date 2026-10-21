@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpRight, Check, Circle, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { AnimatedNumber, ErrorText, Meter, logoSrc } from '@/components/pronark';
+import { AnimatedNumber, ErrorText, Meter, Logo } from '@/components/pronark';
 
 const sources = {
  spending: 'https://institute.bankofamerica.com/economic-insights/generational-spending-update.html',
@@ -19,7 +19,7 @@ export function WelcomePage({onSignIn,error,signedIn=false}:{onSignIn:()=>void;e
   <a href="#welcome-main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:ring-2 focus:ring-ring">Skip to content</a>
   <header className="glass sticky top-0 z-40 pt-[env(safe-area-inset-top)] shadow-[0_1px_0_var(--border)]">
    <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 md:px-8">
-    <a href="#top" aria-label="Pronark home"><img src={logoSrc} alt="Pronark" className="dark:invert dark:hue-rotate-180 h-10 w-auto object-contain"/></a>
+    <a href="#top" aria-label="Pronark home"><Logo variant="mark" className="h-10"/></a>
     <nav aria-label="Welcome navigation" className="hidden gap-5 text-sm text-muted-foreground sm:flex"><a className="hover:text-foreground" href="#how-it-works">How it works</a><a className="hover:text-foreground" href="#why-pronark">Why Pronark</a></nav>
     <Button className="ml-auto" onClick={onSignIn}>{signedIn?'Open app':'Sign in'}<ArrowUpRight data-icon="inline-end"/></Button>
    </div>
@@ -86,6 +86,6 @@ export function WelcomePage({onSignIn,error,signedIn=false}:{onSignIn:()=>void;e
     <p className="text-sm text-primary-foreground/80">Pronark tracks rewards from money you set aside.<br/>It doesn’t pay cash or move money for you.</p>
    </div></section>
   </main>
-  <footer className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 border-t px-4 py-8 pb-[max(2rem,env(safe-area-inset-bottom))] text-sm text-muted-foreground md:px-8"><a href="#top" aria-label="Pronark home"><img src={logoSrc} alt="Pronark" className="dark:invert dark:hue-rotate-180 h-9 w-auto object-contain"/></a><p>Small habits. A life that feels like you.</p><a href="#top" className="inline-flex items-center gap-1 hover:text-foreground">Back to top<ArrowUp className="size-3.5" aria-hidden="true"/></a></footer>
+  <footer className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 border-t px-4 py-8 pb-[max(2rem,env(safe-area-inset-bottom))] text-sm text-muted-foreground md:px-8"><a href="#top" aria-label="Pronark home"><Logo className="h-16"/></a><p>Small habits. A life that feels like you.</p><a href="#top" className="inline-flex items-center gap-1 hover:text-foreground">Back to top<ArrowUp className="size-3.5" aria-hidden="true"/></a></footer>
  </div>;
 }

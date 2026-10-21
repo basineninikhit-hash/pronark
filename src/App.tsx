@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetFooter } from '@/components/sheet';
 import { Segmented } from '@/components/segmented';
-import { CompanionArt, logoSrc } from '@/components/pronark';
+import { CompanionArt, Logo } from '@/components/pronark';
 import { GoalsForm, KpiLogForm, TaskForm, TemplateForm } from '@/components/editors';
 import { useSlidingIndicator } from '@/components/sliding-indicator';
 import { OnboardingChecklist } from '@/components/onboarding-checklist';
@@ -412,7 +412,7 @@ function Splash({ title, children }: { title?: string; children?: ReactNode }) {
   return (
     <main className="grid min-h-dvh place-items-center p-6 text-center">
       <div className="flex flex-col items-center gap-3">
-        <img src={logoSrc} alt="Pronark" className="dark:invert dark:hue-rotate-180 h-20 w-auto animate-pulse object-contain" />
+        <Logo className="h-24 animate-pulse" />
         {title && <h1 className="text-headline">{title}</h1>}
         <div className="text-sm text-muted-foreground">{children}</div>
       </div>
@@ -435,7 +435,7 @@ function Sidebar({ page, onPage }: { page: View; onPage: (view: View) => void })
   };
   return (
     <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-3 py-5 md:flex">
-      <img src={logoSrc} alt="Pronark" className="dark:invert dark:hue-rotate-180 mx-2 mb-6 h-14 w-auto self-start object-contain" />
+      <div className="mx-2 mb-6"><Logo className="h-20" /></div>
       <nav ref={navRef} aria-label="Main navigation" className="relative flex flex-1 flex-col gap-0.5">
         <span ref={indicatorRef} aria-hidden="true" className="absolute top-0 left-0 rounded-lg bg-sidebar-primary shadow-sm" />
         {sidebarViews.map(item)}
@@ -461,7 +461,7 @@ function AppBar({ title, switcher, accountMenu }: { title: string; switcher: Rea
     <>
       <header className={cn('sticky top-0 z-40 pt-[env(safe-area-inset-top)] transition-[background-color,box-shadow] duration-200', scrolled ? 'glass shadow-[0_1px_0_var(--border)]' : 'bg-transparent')}>
         <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-3 px-4 md:h-16 md:px-8">
-          <img src={logoSrc} alt="Pronark" className={cn('h-9 w-auto object-contain dark:invert dark:hue-rotate-180 transition-opacity duration-200 md:hidden', scrolled && 'opacity-0')} />
+          <span className={cn('transition-opacity duration-200 md:hidden', scrolled && 'opacity-0')}><Logo variant="mark" className="h-9" /></span>
           <span aria-hidden={!scrolled} className={cn('absolute left-1/2 -translate-x-1/2 text-sm font-semibold transition-opacity duration-200 md:static md:translate-x-0 md:text-base', scrolled ? 'opacity-100' : 'opacity-0 md:opacity-100')}>
             <span className="md:hidden">{title}</span>
             <span className="hidden text-title md:inline">{title}</span>

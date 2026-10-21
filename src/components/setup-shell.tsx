@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, type ReactNode } from 'react';
-import { Meter, logoSrc } from '@/components/pronark';
+import { Meter, Logo } from '@/components/pronark';
 import { cn } from '@/lib/utils';
 import { prefersReducedMotion, useSpring } from '@/lib/motion';
 
@@ -19,7 +19,7 @@ export function SetupShell({ label, actions, step, total, stepKey, hint, childre
     <main className="flex min-h-dvh flex-col bg-gradient-to-b from-primary/10 via-background to-background">
       <header className="glass sticky top-0 z-30 pt-[env(safe-area-inset-top)] shadow-[0_1px_0_var(--border)]">
         <div className="mx-auto flex h-14 w-full max-w-2xl items-center gap-3 px-4">
-          <img src={logoSrc} alt="Pronark" className="dark:invert dark:hue-rotate-180 h-9 w-auto object-contain" />
+          <Logo variant="mark" className="h-9" />
           <span className="text-eyebrow hidden text-muted-foreground sm:inline">{label}</span>
           <div className="ml-auto flex items-center gap-1.5">{actions}</div>
         </div>

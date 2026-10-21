@@ -3,7 +3,7 @@ self.addEventListener('push', event => {
   const title = typeof data.title === 'string' ? data.title : 'Pronark update';
   const body = typeof data.body === 'string' ? data.body : 'Open Pronark for your latest progress.';
   const url = self.registration.scope;
-  event.waitUntil(self.registration.showNotification(title, { body, data: { url }, icon: new URL('icon.svg', self.registration.scope).href }));
+  event.waitUntil(self.registration.showNotification(title, { body, data: { url }, icon: new URL('icon-192.png', self.registration.scope).href }));
 });
 self.addEventListener('notificationclick', event => {
   event.notification.close();

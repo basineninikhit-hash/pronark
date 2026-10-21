@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
-import { ErrorText, FieldRow, FormField, WeekdayPicker, logoSrc } from '@/components/pronark';
+import { ErrorText, FieldRow, FormField, WeekdayPicker, Logo } from '@/components/pronark';
 import { initialActivities } from '@/lib/domain';
 
 type Item = { title: string; description: string; reward_cents: number; weekdays: number[] };
@@ -18,7 +18,7 @@ export function LegacySetup({ busy, error, invite, onInviteChange, onJoin, submi
   const patch = (i: number, value: Partial<Item>) => setItems(items.map((x, n) => (n === i ? { ...x, ...value } : x)));
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col gap-5 px-4 py-8">
-      <img src={logoSrc} alt="Pronark" className="dark:invert dark:hue-rotate-180 h-24 w-auto self-start object-contain" />
+      <div className="self-start"><Logo className="h-24" /></div>
       <div>
         <h1 className="text-display">Make your routine yours</h1>
         <p className="mt-2 text-sm text-muted-foreground">Choose your monthly goals and the days each activity is scheduled. Notes can be added later.</p>
