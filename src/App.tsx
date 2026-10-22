@@ -1,7 +1,7 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { CalendarDays, ChartColumn, ListChecks, ChevronDown, Gift, House, LogOut, Settings as SettingsIcon, Smile, Target, UserRound, Users, type LucideProps } from 'lucide-react';
+import { CalendarDays, ChartColumn, ListChecks, ChevronDown, Gift, House, LogOut, Settings as SettingsIcon, Smile, Sparkles, UserRound, Users, type LucideProps } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -46,15 +46,15 @@ const WeeklyReportSettings = named(() => import('@/pages/Settings'), 'WeeklyRepo
 const InsightsHub = named(() => import('@/pages/InsightsHub'), 'InsightsHub');
 const RoutinesPage = named(() => import('@/pages/Routines'), 'RoutinesPage');
 
-const navIcons: Record<View, ComponentType<LucideProps>> = { Home: House, Calendar: CalendarDays, Routines: ListChecks, Insights: ChartColumn, Goals: Target, Wallet: Gift, Groups: Users, Profile: UserRound, Settings: SettingsIcon };
-const navLabel = (v: View) => (v === 'Wallet' ? 'Rewards' : v);
-const pageTitles: Record<View, string> = { Home: 'Your daily wins', Calendar: 'Your habit calendar', Routines: 'Your routines', Insights: 'Your insights', Goals: 'My wishlist goals', Wallet: 'Your rewards', Groups: 'Your groups', Profile: 'Your profile', Settings: 'Settings' };
+const navIcons: Record<View, ComponentType<LucideProps>> = { Home: House, Calendar: CalendarDays, Routines: ListChecks, Insights: ChartColumn, Goals: Sparkles, Wallet: Gift, Groups: Users, Profile: UserRound, Settings: SettingsIcon };
+const navLabel = (v: View) => (v === 'Wallet' ? 'Rewards' : v === 'Goals' ? 'Wishlist' : v);
+const pageTitles: Record<View, string> = { Home: 'Your daily wins', Calendar: 'Your habit calendar', Routines: 'Your routines', Insights: 'Your insights', Goals: 'Your Wishlist', Wallet: 'Your rewards', Groups: 'Your groups', Profile: 'Your profile', Settings: 'Settings' };
 const pageSubtitles: Record<View, string> = {
   Home: 'Small steps today. Bigger tomorrows.',
   Calendar: 'See your progress, build consistency, and make it yours.',
   Routines: 'One clear step at a time.',
   Insights: 'Notice the patterns behind your progress.',
-  Goals: 'Use your wallet to fund the things you want. Assign funds whenever you’re ready.',
+  Goals: 'A home for everything you’re working toward.',
   Wallet: 'Use your earned funds for the things that motivate you.',
   Groups: 'Play together and cheer each other on.',
   Profile: 'Your name, monthly goals and companion.',
@@ -293,7 +293,7 @@ export function App() {
     { id: 'activity', title: 'Add your first activity', isCompleted: ownTaskIds.size > 0, description: 'Pick a habit you want to build and give it a reward.', actionLabel: 'Add', onAction: () => setEditor(null) },
     { id: 'checkoff', title: 'Check off your first activity', isCompleted: completions.some((c) => c.completed && ownTaskIds.has(c.task_id)), description: 'Tap “Check off” next to something you did today.', actionLabel: 'Show me',
       onAction: () => document.getElementById('checklist-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
-    { id: 'goal', title: 'Set a savings goal', isCompleted: categories.some((c) => c.owner_id === own && (c.general_target_cents ?? 0) > 0) || wishes.some((w) => w.owner_id === own), description: 'Choose something you’re saving toward, like a trip or new shoes.', actionLabel: 'Open goals', onAction: () => go('Goals') },
+    { id: 'goal', title: 'Set a savings goal', isCompleted: categories.some((c) => c.owner_id === own && (c.general_target_cents ?? 0) > 0) || wishes.some((w) => w.owner_id === own), description: 'Choose something you’re saving toward, like a trip or new shoes.', actionLabel: 'Open wishlist', onAction: () => go('Goals') },
     { id: 'number', title: 'Track a number, like steps or water', isCompleted: activityKpis.some((k) => k.owner_id === own), description: 'Turn on “Track a measurable goal” when editing an activity.', actionLabel: 'Set it up',
       onAction: () => (firstTask ? setEditor(firstTask) : setEditor(null)) },
     { id: 'group', title: 'Invite someone to a group', isCompleted: memberships.some((m) => m.user_id !== own), description: 'Share progress with a partner, family or friends.', actionLabel: 'Open groups', onAction: () => go('Groups') },

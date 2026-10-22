@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 
 const db = new PGlite();
 await db.exec(`create role anon; create role authenticated; create role service_role; create schema auth; create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz); create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; create function digest(text,text) returns bytea language sql immutable as $$ select decode(md5($1),'hex') $$; create function gen_random_bytes(integer) returns bytea language sql volatile as $$ select decode(repeat('ab',$1),'hex') $$;`);
-for (const file of ['supabase/migrations/202609210001_foundation.sql','supabase/migrations/202609210002_rewards.sql','supabase/migrations/202609210003_rpc_permissions.sql','supabase/migrations/202609210004_atomic_setup.sql','supabase/migrations/202609220005_program_features.sql','supabase/migrations/202609220006_delivery_and_mirror.sql','supabase/migrations/202609220007_weekly_delivery_leases.sql','supabase/migrations/202609220008_sandbox_report_consent.sql','supabase/migrations/202609220009_invitation_pgcrypto_path.sql','supabase/migrations/202609220010_push_delivery_leases.sql','supabase/migrations/202609250011_goals_profile.sql','supabase/migrations/202609260012_rewards_overhaul.sql','supabase/migrations/202609260013_positive_balance_bonuses.sql','supabase/migrations/202610070014_activity_kpis.sql','supabase/migrations/202610080015_private_metrics.sql','supabase/migrations/202610080016_checklist_presentation.sql','supabase/migrations/202610080017_goal_target_growth.sql','supabase/migrations/202610080018_guided_onboarding.sql','supabase/migrations/202610100019_companion_reactions.sql','supabase/migrations/202610100020_custom_reminders.sql','supabase/migrations/202610100021_private_groups.sql','supabase/migrations/202610100022_together_garden.sql','supabase/migrations/202610200023_start_over.sql','supabase/migrations/202610210024_companion_character.sql','supabase/migrations/202610220025_guided_routines.sql','supabase/migrations/202610230026_group_games.sql']) {
+for (const file of ['supabase/migrations/202609210001_foundation.sql','supabase/migrations/202609210002_rewards.sql','supabase/migrations/202609210003_rpc_permissions.sql','supabase/migrations/202609210004_atomic_setup.sql','supabase/migrations/202609220005_program_features.sql','supabase/migrations/202609220006_delivery_and_mirror.sql','supabase/migrations/202609220007_weekly_delivery_leases.sql','supabase/migrations/202609220008_sandbox_report_consent.sql','supabase/migrations/202609220009_invitation_pgcrypto_path.sql','supabase/migrations/202609220010_push_delivery_leases.sql','supabase/migrations/202609250011_goals_profile.sql','supabase/migrations/202609260012_rewards_overhaul.sql','supabase/migrations/202609260013_positive_balance_bonuses.sql','supabase/migrations/202610070014_activity_kpis.sql','supabase/migrations/202610080015_private_metrics.sql','supabase/migrations/202610080016_checklist_presentation.sql','supabase/migrations/202610080017_goal_target_growth.sql','supabase/migrations/202610080018_guided_onboarding.sql','supabase/migrations/202610100019_companion_reactions.sql','supabase/migrations/202610100020_custom_reminders.sql','supabase/migrations/202610100021_private_groups.sql','supabase/migrations/202610100022_together_garden.sql','supabase/migrations/202610200023_start_over.sql','supabase/migrations/202610210024_companion_character.sql','supabase/migrations/202610220025_guided_routines.sql','supabase/migrations/202610230026_group_games.sql','supabase/migrations/202610230027_wishlist.sql']) {
   try { await db.exec(readFileSync(file,'utf8').replace('create extension if not exists pgcrypto;','')); console.log(`PASS migration ${file}`); }
   catch (error) { console.error(`FAIL migration ${file}: ${error.message}`); process.exitCode=1; break; }
 }
@@ -148,6 +148,33 @@ if (!process.exitCode) {
  assert.equal((await query('select cents from item_allocations where item_id=$1',[item]))[0].cents,2600);
  assert.equal((await query('select coalesce(sum(cents),0)::int n from allocation_events where category_id=$1',[clothes]))[0].n,3000);
  assert.ok((await query("select count(*)::int n from sheet_jobs where entity in ('item_allocations','purchase_allocation_effects')"))[0].n>=2);
+ // Wishlist: unassigning returns category dollars to Available, never below zero, never spends.
+ {
+ const catTotal=async()=>(await query('select coalesce(sum(cents),0)::int n from allocation_events where category_id=$1',[clothes]))[0].n;
+ const itemCents=async()=>(await query('select cents from item_allocations where item_id=$1',[item]))[0].cents;
+ const wallet=(await query('select app.wallet_cents($1) w',[a]))[0].w;
+ assert.deepEqual([await catTotal(),await itemCents()],[3000,2600]);
+ await reject('select unassign_category($1,$2)',[clothes,0]);
+ await reject('select unassign_category($1,$2)',[clothes,-100]);
+ await reject('select unassign_category($1,$2)',[clothes,3001]);
+ await as(b); await reject('select unassign_category($1,$2)',[clothes,100]); await as(a);
+ await query('select unassign_category($1,$2)',[clothes,300]);
+ assert.deepEqual([await catTotal(),await itemCents()],[2700,2600],'free category dollars come back first');
+ await query('select unassign_category($1,$2)',[clothes,500]);
+ assert.deepEqual([await catTotal(),await itemCents()],[2200,2200],'then item savings, so items never exceed the category');
+ assert.equal((await query('select app.wallet_cents($1) w',[a]))[0].w,wallet,'unassigning never changes the wallet balance');
+ assert.equal((await query("select reason from allocation_events where category_id=$1 order by created_at desc limit 1",[clothes]))[0].reason,'unassign');
+ await query('select fund_category($1,$2,$3)',[clothes,800,null]);
+ await query('select assign_item($1,$2,$3)',[item,400,'category']);
+ assert.deepEqual([await catTotal(),await itemCents()],[3000,2600]);
+ // Item icons: a name from the app's set, owner only.
+ await query('select set_wishlist_item_icon($1,$2)',[item,'watch']);
+ assert.equal((await query('select icon from wishlist_items where id=$1',[item]))[0].icon,'watch');
+ await reject('select set_wishlist_item_icon($1,$2)',[item,'Bad Icon!']);
+ await as(b); await reject('select set_wishlist_item_icon($1,$2)',[item,'gift']); await as(a);
+ await query('select set_wishlist_item_icon($1,$2)',[item,null]);
+ console.log('PASS wishlist: unassign limits, item savings return last, wallet unchanged, item icons');
+ }
  const template='12121212-1212-4121-8121-121212121212';
  await query('select save_template($1,$2,$3,$4,$5,$6,$7)',[template,'Skin plan','Night skin care','Step one\nStep two',[1,3,5],100,null]);
  assert.equal((await query('select count(*)::int n from template_versions where template_id=$1',[template]))[0].n,1);
