@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 
 const db = new PGlite();
 await db.exec(`create role anon; create role authenticated; create role service_role; create schema auth; create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz); create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; create function digest(text,text) returns bytea language sql immutable as $$ select decode(md5($1),'hex') $$; create function gen_random_bytes(integer) returns bytea language sql volatile as $$ select decode(repeat('ab',$1),'hex') $$;`);
-for (const file of ['supabase/migrations/202609210001_foundation.sql','supabase/migrations/202609210002_rewards.sql','supabase/migrations/202609210003_rpc_permissions.sql','supabase/migrations/202609210004_atomic_setup.sql','supabase/migrations/202609220005_program_features.sql','supabase/migrations/202609220006_delivery_and_mirror.sql','supabase/migrations/202609220007_weekly_delivery_leases.sql','supabase/migrations/202609220008_sandbox_report_consent.sql','supabase/migrations/202609220009_invitation_pgcrypto_path.sql','supabase/migrations/202609220010_push_delivery_leases.sql','supabase/migrations/202609250011_goals_profile.sql','supabase/migrations/202609260012_rewards_overhaul.sql','supabase/migrations/202609260013_positive_balance_bonuses.sql','supabase/migrations/202610070014_activity_kpis.sql','supabase/migrations/202610080015_private_metrics.sql','supabase/migrations/202610080016_checklist_presentation.sql','supabase/migrations/202610080017_goal_target_growth.sql','supabase/migrations/202610080018_guided_onboarding.sql','supabase/migrations/202610100019_companion_reactions.sql','supabase/migrations/202610100020_custom_reminders.sql','supabase/migrations/202610100021_private_groups.sql','supabase/migrations/202610100022_together_garden.sql','supabase/migrations/202610200023_start_over.sql','supabase/migrations/202610210024_companion_character.sql','supabase/migrations/202610220025_guided_routines.sql']) {
+for (const file of ['supabase/migrations/202609210001_foundation.sql','supabase/migrations/202609210002_rewards.sql','supabase/migrations/202609210003_rpc_permissions.sql','supabase/migrations/202609210004_atomic_setup.sql','supabase/migrations/202609220005_program_features.sql','supabase/migrations/202609220006_delivery_and_mirror.sql','supabase/migrations/202609220007_weekly_delivery_leases.sql','supabase/migrations/202609220008_sandbox_report_consent.sql','supabase/migrations/202609220009_invitation_pgcrypto_path.sql','supabase/migrations/202609220010_push_delivery_leases.sql','supabase/migrations/202609250011_goals_profile.sql','supabase/migrations/202609260012_rewards_overhaul.sql','supabase/migrations/202609260013_positive_balance_bonuses.sql','supabase/migrations/202610070014_activity_kpis.sql','supabase/migrations/202610080015_private_metrics.sql','supabase/migrations/202610080016_checklist_presentation.sql','supabase/migrations/202610080017_goal_target_growth.sql','supabase/migrations/202610080018_guided_onboarding.sql','supabase/migrations/202610100019_companion_reactions.sql','supabase/migrations/202610100020_custom_reminders.sql','supabase/migrations/202610100021_private_groups.sql','supabase/migrations/202610100022_together_garden.sql','supabase/migrations/202610200023_start_over.sql','supabase/migrations/202610210024_companion_character.sql','supabase/migrations/202610220025_guided_routines.sql','supabase/migrations/202610230026_group_games.sql']) {
   try { await db.exec(readFileSync(file,'utf8').replace('create extension if not exists pgcrypto;','')); console.log(`PASS migration ${file}`); }
   catch (error) { console.error(`FAIL migration ${file}: ${error.message}`); process.exitCode=1; break; }
 }
@@ -288,6 +288,67 @@ if (!process.exitCode) {
  assert.equal(Number((await query('select read_group_garden($1) data',[group]))[0].data.find(p=>p.id===checkoffPlant).progress),6);
  await as(outsider);
  await reject('select read_group_garden($1)',[group]);
+ // Group games: points from check-offs, cheers that score once a day, games, last game, reusable links.
+ {
+ await db.exec('reset role'); await as(a);
+ const game=async()=>(await query('select read_group_game($1) d',[group]))[0].d;
+ let g=await game();
+ assert.equal(g.game.kind,'race'); assert.equal(g.game.chosen,false);
+ assert.deepEqual([g.game.starts_on,g.game.ends_on],['2026-07-27','2026-08-02'],'default game is this Monday to Sunday race');
+ const pointsFor=async(user,from,to)=>(await query("select (app.day_tally($1,d::date)).* from generate_series($2::date,$3::date,'1 day') d",[user,from,to])).reduce((n,t)=>n+t.done+(t.due>0&&t.done===t.due?2:0),0);
+ const aBase=await pointsFor(a,'2026-07-27','2026-07-31');
+ assert.equal(g.members.find(m=>m.user_id===a).points,aBase,'points are check-offs plus full-day bonuses');
+ assert.ok(g.members.every(m=>m.character&&m.character.color),'each member comes with their companion look');
+ // Cheers: one per person per day, +1 for the sender and the receiver on that day.
+ await query("select send_garden_cheer($1,$2,'nice_work')",[group,b]);
+ await db.exec('reset role');
+ await query("update garden_cheers set created_at='2026-07-31 12:00:00-04' where from_user=$1 and to_user=$2",[a,b]);
+ await as(a);
+ await reject("select send_garden_cheer($1,$2,'you_got_this')",[group,b]);
+ g=await game();
+ assert.equal(g.members.find(m=>m.user_id===a).points,aBase+1,'cheering a friend scores once that day');
+ assert.equal(g.members.find(m=>m.user_id===b).cheered_today,true);
+ assert.equal((await query("select push_state from garden_cheers where from_user=$1 and to_user=$2",[a,b]))[0].push_state,'pending','new cheers wait for a push');
+ // A member who hides their summary shows no score to others.
+ await as(b);
+ const shareRev=(await query('select revision from group_sharing where group_id=$1 and user_id=$2',[group,b]))[0].revision;
+ await query('select save_group_sharing($1,$2,$3,$4)',[group,false,false,shareRev]);
+ await as(a);
+ g=await game();
+ const hidden=g.members.find(m=>m.user_id===b);
+ assert.deepEqual([hidden.visible,hidden.points,hidden.due_today],[false,0,null]);
+ await as(b); await query('select save_group_sharing($1,$2,$3,$4)',[group,true,false,shareRev+1]); await as(a);
+ // Picking a game: starts tomorrow, ends the current one today, team goals get a target.
+ await reject("select start_group_challenge($1,'darts',7)",[group]);
+ await reject("select start_group_challenge($1,'race',5)",[group]);
+ await query("select start_group_challenge($1,'team',7)",[group]);
+ g=await game();
+ assert.equal(g.game.ends_on,'2026-07-31','the current race ends today');
+ assert.equal(g.next.kind,'team'); assert.equal(g.next.starts_on,'2026-08-01');
+ assert.ok((await query("select team_target from group_challenges where group_id=$1 and kind='team'",[group]))[0].team_target>=5);
+ await query("select start_group_challenge($1,'streak',3)",[group]);
+ assert.equal((await query('select count(*)::int n from group_challenges where group_id=$1',[group]))[0].n,1,'a new pick replaces the scheduled one');
+ // Last game: last week's race, with badges.
+ assert.deepEqual([g.last.starts_on,g.last.ends_on],['2026-07-20','2026-07-26']);
+ assert.equal(g.last.standings[0].points,await pointsFor(a,'2026-07-20','2026-07-26'),'last week is ranked by points');
+ // Reusable link: many joins, owner only, stays valid after use.
+ await as(b); await reject('select issue_group_link($1)',[group]);
+ await db.exec('reset role'); await query('delete from invitations'); // the test stub makes every token the same
+ await as(a);
+ const link=(await query('select issue_group_link($1) t',[group]))[0].t;
+ await as(outsider);
+ await reject('select read_group_game($1)',[group]);
+ await reject("select start_group_challenge($1,'race',7)",[group]);
+ assert.equal((await query('select redeem_invitation($1) g',[link]))[0].g,group);
+ await reject('select redeem_invitation($1)',[link]);
+ await db.exec('reset role');
+ assert.equal((await query('select redeemed_at from invitations where reusable'))[0].redeemed_at,null,'reusable links are not used up');
+ await as(a);
+ await query('select remove_private_group_member($1,$2)',[group,outsider]);
+ await db.exec('reset role');
+ await query('delete from group_challenges where group_id=$1',[group]);
+ console.log('PASS group games: points, cheers once a day, hidden scores, game picks, last game, reusable links');
+ }
  // Guided routines: builder, one run per day, Done/Skip, key-step checkoffs, undo, privacy, Sheet summary.
  {
  await db.exec('reset role');

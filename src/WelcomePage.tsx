@@ -77,6 +77,8 @@ function Feature({ icon, title, children }: { icon: ReactNode; title: string; ch
 }
 
 export function WelcomePage({ onSignIn, error, signedIn = false }: { onSignIn: () => void; error: string; signedIn?: boolean }) {
+  // Someone opened a group invite link; it is redeemed right after sign-in.
+  const invited = (() => { try { return !!localStorage.getItem('pronark-join') || new URLSearchParams(location.search).has('join'); } catch { return false; } })();
   const cta = 'landing-cta inline-flex h-11 items-center gap-2 rounded-full px-5 text-sm font-semibold transition-[scale,background-color] duration-100 active:scale-[0.97]';
   const em = 'not-italic text-[var(--mint-ink)]';
   const kicker = 'text-eyebrow text-[var(--mint-ink)]';
@@ -100,6 +102,7 @@ export function WelcomePage({ onSignIn, error, signedIn = false }: { onSignIn: (
       <main id="welcome-main" className="relative">
         <section aria-labelledby="welcome-title" className="mx-auto grid max-w-6xl items-center gap-12 px-4 pt-12 pb-12 md:grid-cols-[1.2fr_1fr] md:px-8 md:pt-20">
           <div className="flex flex-col gap-6">
+            {invited && <p role="status" className="self-start rounded-2xl bg-[var(--mint)] px-4 py-3 text-sm font-medium text-[var(--mint-ink)] ring-1 ring-inset ring-[color-mix(in_oklch,var(--primary),transparent_55%)]">You’ve been invited to a group! Sign in and you’ll join it right away.</p>}
             <h1 id="welcome-title" className="relative text-[clamp(2.5rem,6.4vw,4.1rem)] leading-[1.03] font-bold tracking-[-0.04em]">
               Your goals.<br />Your wishlist.<br />On the same team.
               <Sparkle className="absolute -top-3 left-[min(68%,21rem)] size-10 text-[var(--ink)]" />

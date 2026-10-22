@@ -7,6 +7,7 @@ import { runSheetMirror } from './sheet-mirror.mjs';
 import { runPushNotifications } from './push-automation.mjs';
 import { runCustomReminders } from './custom-reminders.mjs';
 import { runRoutineReminders } from './routine-reminders.mjs';
+import { runCheerNotifications } from './cheer-notifications.mjs';
 
 const required = ['SUPABASE_URL','HNF_WORKER_TOKEN'];
 Deno.serve(async request => {
@@ -67,6 +68,16 @@ Deno.serve(async request => {
       const webpush=(await import('npm:web-push@3.6.7')).default;
       const send=(subscription:unknown,content:unknown)=>webpush.sendNotification(subscription,JSON.stringify(content),{vapidDetails:{subject,publicKey,privateKey},TTL:900});
       return Response.json({ok:true,...await runRoutineReminders({db,send})});
+    } catch (error) { return Response.json({ok:false,error:String(error)},{status:500}); }
+  }
+  if (new URL(request.url).searchParams.get('job') === 'cheer-notifications') {
+    if (Deno.env.get('ENABLE_CHEER_NOTIFICATIONS') !== '1') return Response.json({ok:true,cheerNotificationsEnabled:false});
+    const publicKey=Deno.env.get('VAPID_PUBLIC_KEY'),privateKey=Deno.env.get('VAPID_PRIVATE_KEY'),subject=Deno.env.get('VAPID_SUBJECT');
+    if (!publicKey||!privateKey||!subject) return Response.json({ok:false,error:'Missing VAPID configuration'},{status:503});
+    try {
+      const webpush=(await import('npm:web-push@3.6.7')).default;
+      const send=(subscription:unknown,content:unknown)=>webpush.sendNotification(subscription,JSON.stringify(content),{vapidDetails:{subject,publicKey,privateKey},TTL:3600});
+      return Response.json({ok:true,...await runCheerNotifications({db,send})});
     } catch (error) { return Response.json({ok:false,error:String(error)},{status:500}); }
   }
   if (new URL(request.url).searchParams.get('job') === 'sheets') {

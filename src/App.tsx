@@ -56,7 +56,7 @@ const pageSubtitles: Record<View, string> = {
   Insights: 'Notice the patterns behind your progress.',
   Goals: 'Use your wallet to fund the things you want. Assign funds whenever you’re ready.',
   Wallet: 'Use your earned funds for the things that motivate you.',
-  Groups: 'Share your progress with people you trust.',
+  Groups: 'Play together and cheer each other on.',
   Profile: 'Your name, monthly goals and companion.',
   Settings: 'Notifications, invitations and your account.',
 };
@@ -100,6 +100,24 @@ export function App() {
     return () => data.subscription.unsubscribe();
   }, []);
   useEffect(() => { setAppReducedMotion(!!ownExperience?.reduced_motion); }, [ownExperience?.reduced_motion]);
+  // Invite links (?join=…) are kept through the Google sign-in redirect, then redeemed once.
+  const [joinedGroup, setJoinedGroup] = useState<string | null>(() => new URLSearchParams(location.search).get('group'));
+  useEffect(() => {
+    const token = new URLSearchParams(location.search).get('join');
+    if (!token) return;
+    try { localStorage.setItem('pronark-join', token); } catch { /* storage blocked */ }
+    const url = new URL(location.href); url.searchParams.delete('join'); history.replaceState(null, '', url);
+  }, []);
+  useEffect(() => {
+    if (!supabase || !session) return;
+    let token: string | null = null;
+    try { token = localStorage.getItem('pronark-join'); localStorage.removeItem('pronark-join'); } catch { /* storage blocked */ }
+    if (!token) return;
+    supabase.rpc('redeem_invitation', { p_token: token }).then(({ data, error: failure }) => {
+      if (failure) { toast.error(/Already in this group/.test(failure.message) ? 'You’re already in that group.' : failure.message); return; }
+      setJoinedGroup(data as string); setPage('Groups'); toast.success('You joined the group! Your habits now count toward the game.');
+    });
+  }, [session?.user.id]);
   useEffect(() => { setGuideHidden(!!own && localStorage.getItem('pronark-getting-started-hidden:' + own) === '1'); }, [own]);
   useEffect(() => {
     if (!dataReady || !ownProfile?.setup_completed_at || !own) return;
@@ -360,7 +378,7 @@ export function App() {
               {!readOnly && onboardingReady && <ReactionSettings key={own} client={supabase} tasks={tasks.filter((t) => t.owner_id === own && !t.archive_date)} preference={ownExperience ?? null} onRefresh={refresh} />}
             </ProfilePage>
           )}
-          {page === 'Groups' && <GroupsPage client={supabase} owner={own} tasks={tasks.filter((t) => t.owner_id === own)} />}
+          {page === 'Groups' && <GroupsPage key={joinedGroup ?? 'groups'} client={supabase} owner={own} tasks={tasks.filter((t) => t.owner_id === own)} initialGroup={joinedGroup} character={characterStyle} />}
           {page === 'Settings' && !readOnly && (
             <SettingsPage profile={ownProfile} today={today} busy={busy} error={error} hasPartner={!!partner} onStartOver={startOver} issued={issued} pushStatus={pushStatus}
               onEditGoals={() => setGoalsEditor(true)} onInvite={() => run(async () => { setIssued(await rpc<string>('issue_invitation')); }, 'Invitation issued.')}
