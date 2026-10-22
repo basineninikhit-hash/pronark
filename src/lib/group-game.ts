@@ -64,7 +64,8 @@ export function coachTip(state: GameState, me: string) {
   }
   const visible = others.filter((m) => m.visible);
   const best = visible.reduce<GameMember | null>((a, m) => (!a || m.points > a.points ? m : a), null);
-  if (!best || (best.points === 0 && self.points === 0)) return 'First check-off of the week takes the lead!';
+  if (!best) return 'Your friends keep their scores private. Every check-off still counts!';
+  if (best.points === 0 && self.points === 0) return 'First check-off of the week takes the lead!';
   if (self.points > best.points) return left ? `You’re in the lead! Your ${left} left today keeps you ahead.` : 'You’re in the lead! Nice work today.';
   const gap = best.points - self.points;
   const possible = left + (left > 0 ? 2 : 0);

@@ -11,8 +11,10 @@ type Phase = 'idle' | 'counting' | 'running';
  * starts a countdown; pressing again cancels. Only when the countdown ends does `onConfirm`
  * run. If the button disappears mid-countdown (e.g. its sheet is closed), nothing happens.
  */
-export function TimedUndoButton({ label, undoLabel = 'Undo', runningLabel = 'Working…', seconds = 5, onConfirm, disabled, icon, size = 'default', className }: {
+export function TimedUndoButton({ label, undoLabel = 'Undo', runningLabel = 'Working…', seconds = 5, onConfirm, disabled, icon, size = 'default', tone = 'danger', className }: {
   label: ReactNode;
+  /** `neutral` for actions that aren't destructive (still with the countdown to undo). */
+  tone?: 'danger' | 'neutral';
   undoLabel?: string;
   runningLabel?: string;
   seconds?: number;
@@ -83,7 +85,7 @@ export function TimedUndoButton({ label, undoLabel = 'Undo', runningLabel = 'Wor
         'relative inline-flex shrink-0 overflow-hidden rounded-full font-semibold outline-none select-none',
         'transition-[background-color,color,scale] duration-300 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-destructive/40 disabled:opacity-60',
         size === 'sm' ? 'h-8 text-xs pointer-coarse:h-10' : 'h-10 text-sm pointer-coarse:h-11',
-        phase === 'counting' ? 'bg-destructive/10 text-destructive dark:bg-destructive/20' : 'bg-destructive text-white hover:bg-destructive/90',
+        phase === 'counting' ? 'bg-destructive/10 text-destructive dark:bg-destructive/20' : tone === 'neutral' ? 'bg-card text-foreground ring-1 ring-inset ring-foreground/15 hover:bg-muted' : 'bg-destructive text-white hover:bg-destructive/90',
         className,
       )}>
       <span ref={contentRef} className={cn('flex h-full w-max items-center gap-2 whitespace-nowrap', phase === 'counting' ? 'pr-1 pl-1' : size === 'sm' ? 'px-3.5' : 'px-5')}>

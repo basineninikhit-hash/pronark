@@ -18,6 +18,9 @@ type Group = { id: string; name: string; owner_id: string };
 type Share = { group_id: string; user_id: string; show_summary: boolean; full_history: boolean; revision: number };
 type Task = { id: string; title: string; archive_date: string | null };
 type Mutation = { error: unknown; data?: unknown };
+/** What each member chose to share in this group, from `read_group_overview`. */
+type Shared = { user_id: string; full_history: boolean; activities: { id: string; title: string; scheduled_today: boolean; completed_today: boolean }[] };
+type HistoryRow = { date: string; scheduled: boolean; completed: boolean };
 type View = 'home' | 'points' | 'results' | 'invite' | 'habits' | 'manage';
 type CheerKind = 'nice_work' | 'you_got_this' | 'thank_you';
 type Level = 'score' | 'habits' | 'everything' | 'private';
@@ -29,7 +32,7 @@ const lookOf = (m: GameMember, crown = false): CharacterStyle => { const look = 
 export function GroupsPage({ client, owner, tasks, initialGroup, character }: { client: SupabaseClient; owner: string; tasks: Task[]; initialGroup?: string | null; character: CharacterStyle }) {
   const [groups, setGroups] = useState<Group[] | null>(null), [selected, setSelected] = useState(initialGroup ?? '');
   const [state, setState] = useState<GameState | null>(null), [view, setView] = useState<View>('home');
-  const [sharing, setSharing] = useState<Share | null>(null), [sharedIds, setSharedIds] = useState<string[]>([]);
+  const [sharing, setSharing] = useState<Share | null>(null), [sharedIds, setSharedIds] = useState<string[]>([]), [shared, setShared] = useState<Shared[]>([]);
   const [cheering, setCheering] = useState<GameMember | null>(null), [createOpen, setCreateOpen] = useState(false), [joinOpen, setJoinOpen] = useState(false);
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
 
@@ -40,13 +43,15 @@ export function GroupsPage({ client, owner, tasks, initialGroup, character }: { 
     setSelected((s) => next.some((g) => g.id === s) ? s : next[0]?.id ?? '');
   }
   async function loadSelected(groupId: string) {
-    const [game, share, items] = await Promise.all([
+    const [game, share, items, overview] = await Promise.all([
       client.rpc('read_group_game', { p_group: groupId }),
       client.from('group_sharing').select('*').eq('group_id', groupId).eq('user_id', owner).maybeSingle(),
       client.from('group_activity_shares').select('task_id').eq('group_id', groupId).eq('user_id', owner),
+      client.rpc('read_group_overview', { p_group: groupId }),
     ]);
     if (game.error) { setError(/read_group_game/.test(game.error.message) ? 'Group games need the latest database update.' : game.error.message); return; }
-    setState(game.data as GameState); setSharing(share.data as Share | null); setSharedIds((items.data ?? []).map((x) => x.task_id));
+    setState(game.data as GameState); setSharing(share.data as Share | null); setSharedIds(((items.data ?? []) as { task_id: string }[]).map((x) => x.task_id));
+    setShared(((overview.data as { members?: Shared[] } | null)?.members ?? []));
   }
   useEffect(() => { loadGroups(); }, [owner]);
   useEffect(() => { setState(null); if (selected) loadSelected(selected); }, [selected, owner]);
@@ -120,7 +125,8 @@ export function GroupsPage({ client, owner, tasks, initialGroup, character }: { 
         onLeave={() => act(() => client.rpc('leave_private_group', { p_group: selected }), 'You left the group.').then((ok) => { if (ok) open('home'); })} /></>}
 
       <ErrorText>{error}</ErrorText>
-      <CheerSheet member={cheering} me={me} busy={busy} onClose={() => setCheering(null)}
+      <CheerSheet member={cheering} me={me} busy={busy} shared={shared.find((x) => x.user_id === cheering?.user_id)} onClose={() => setCheering(null)}
+        loadHistory={async (member) => { const to = state!.today, d = new Date(to + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() - 6); const { data } = await client.rpc('read_group_history', { p_group: selected, p_member: member, p_from: d.toISOString().slice(0, 10), p_to: to }); return (data ?? []) as HistoryRow[]; }}
         onSend={async (kind) => {
           if (!cheering) return;
           const ok = await act(() => client.rpc('send_garden_cheer', { p_group: selected, p_to: cheering.user_id, p_kind: kind }), `Cheer sent to ${firstName(cheering.name)}! +1 point for you both.`);
@@ -234,7 +240,13 @@ function TeamRow({ m, self, onCheer }: { m: GameMember; self: boolean; onCheer: 
   );
 }
 
-function CheerSheet({ member, me, busy, onClose, onSend }: { member: GameMember | null; me?: GameMember; busy: boolean; onClose: () => void; onSend: (kind: CheerKind) => void }) {
+function CheerSheet({ member, me, busy, shared, loadHistory, onClose, onSend }: {
+  member: GameMember | null; me?: GameMember; busy: boolean; shared?: Shared; loadHistory: (member: string) => Promise<HistoryRow[]>; onClose: () => void; onSend: (kind: CheerKind) => void;
+}) {
+  const [history, setHistory] = useState<HistoryRow[] | null>(null);
+  useEffect(() => { setHistory(null); if (member && shared?.full_history) loadHistory(member.user_id).then(setHistory).catch(() => setHistory(null)); }, [member?.user_id, shared?.full_history]);
+  const todays = shared?.activities.filter((a) => a.scheduled_today) ?? [];
+  const week = history ? [...new Set(history.map((r) => r.date))].sort().map((date) => { const rows = history.filter((r) => r.date === date && r.scheduled); return { date, due: rows.length, done: rows.filter((r) => r.completed).length }; }) : [];
   const done = member ? finishedToday(member) : false;
   const [kind, setKind] = useState<CheerKind>('nice_work');
   useEffect(() => { if (member) setKind(finishedToday(member) ? 'nice_work' : 'you_got_this'); }, [member?.user_id]);
@@ -249,6 +261,18 @@ function CheerSheet({ member, me, busy, onClose, onSend }: { member: GameMember 
         {me && <CompanionCharacter style={toCharacterStyle(me.character)} listen={false} entrance="cheer" className="h-32 w-28" label="Your companion" />}
         {member && <CompanionCharacter style={toCharacterStyle(member.character)} listen={false} entrance="celebrate" className="h-32 w-28" label={`${name}’s companion`} />}
       </div>
+      {todays.length > 0 && <div className="mb-3">
+        <p className="text-eyebrow mb-1.5 text-muted-foreground">{name}’s habits today</p>
+        <ul className="flex flex-wrap gap-1.5">{todays.map((a) => <li key={a.id} className={cn('inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm ring-1 ring-inset', a.completed_today ? 'bg-mint text-mint-ink ring-mint-pop/40' : 'bg-card ring-foreground/12')}>
+          {a.completed_today ? <Check className="size-3.5" strokeWidth={3} aria-hidden="true" /> : <span className="size-2.5 rounded-full ring-2 ring-foreground/25" aria-hidden="true" />}{a.title}<span className="sr-only">{a.completed_today ? ', done' : ', not done yet'}</span></li>)}</ul>
+      </div>}
+      {week.length > 0 && <div className="mb-3">
+        <p className="text-eyebrow mb-1.5 text-muted-foreground">Last 7 days</p>
+        <ol className="grid grid-cols-7 gap-1.5">{week.map((d) => <li key={d.date} className="flex flex-col items-center gap-1 text-[0.6875rem] text-muted-foreground">
+          <span className={cn('grid size-8 place-items-center rounded-full text-[0.6875rem] font-semibold', !d.due ? 'bg-muted' : d.done === d.due ? 'bg-mint-pop text-white' : d.done ? 'bg-mint text-mint-ink' : 'bg-card ring-1 ring-foreground/15')}
+            aria-label={`${formatDate(d.date, { weekday: 'long' })}: ${d.due ? `${d.done} of ${d.due} done` : 'rest day'}`}>{d.due ? d.done : ''}</span>
+          {formatDate(d.date, { weekday: 'narrow' })}</li>)}</ol>
+      </div>}
       <div role="radiogroup" aria-label="Choose a cheer" className="flex flex-col gap-2">
         {choices.map(([id, label, hint]) => (
           <button key={id} type="button" role="radio" aria-checked={kind === id} onClick={() => setKind(id)}
@@ -420,7 +444,7 @@ function InviteView({ client, group, isOwner, ownerName, sharing, sharedCount, b
             <Button className="self-start bg-card" disabled={making} onClick={makeLink}><Link2 data-icon="inline-start" />{making ? 'Making your link…' : 'Create invite link'}</Button>
           </>}
           <p className="text-xs">Links work for 7 days. You can turn them all off anytime.</p>
-          <div className="self-start"><TimedUndoButton size="sm" disabled={busy} label="Turn off all links" runningLabel="Turning off…" onConfirm={() => { setLink(''); onRevoke(); }} /></div>
+          <div className="self-start"><TimedUndoButton size="sm" tone="neutral" disabled={busy} label="Turn off all links" runningLabel="Turning off…" onConfirm={() => { setLink(''); onRevoke(); }} /></div>
         </section>
       ) : <NotePanel tone="mint" icon={<UserPlus className="size-5" aria-hidden="true" />} title="Want to add someone?">Only {firstName(ownerName)} can make invite links for {group.name}. Ask them to send one.</NotePanel>}
       <section aria-labelledby="share-level" className="flex flex-col gap-2">
@@ -454,7 +478,7 @@ function ManageView({ group, state, owner, busy, onTransfer, onRemove, onLeave }
             <span className="grid size-11 shrink-0 place-items-end overflow-hidden rounded-xl bg-lavender"><CompanionCharacter style={lookOf(m)} listen={false} className="h-10 w-8" label="" /></span>
             <span className="min-w-0 flex-1"><strong className="block text-sm font-semibold">{m.user_id === owner ? 'You' : m.name || 'Member'}</strong><span className="text-xs text-muted-foreground">{m.user_id === group.owner_id ? 'Owner' : 'Member'}</span></span>
             {isOwner && m.user_id !== owner && <>
-              <TimedUndoButton size="sm" disabled={busy} label="Make owner" runningLabel="Transferring…" onConfirm={() => onTransfer(m)} />
+              <TimedUndoButton size="sm" tone="neutral" disabled={busy} label="Make owner" runningLabel="Transferring…" onConfirm={() => onTransfer(m)} />
               <TimedUndoButton size="sm" disabled={busy} label="Remove" runningLabel="Removing…" onConfirm={() => onRemove(m)} />
             </>}
           </div>

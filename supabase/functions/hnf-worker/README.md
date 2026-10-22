@@ -48,3 +48,15 @@ reconciliation are not yet complete. A local
 mock verifies one send and duplicate suppression; it does not prove a weekly
 cron. The default worker path only reports pending Sheets jobs. Scheduled push
 timing and retry behavior still need live observation across their first runs.
+
+The cheer-notification job (`?job=cheer-notifications`, `cheer-notifications.mjs`)
+needs migration `202610230026_group_games.sql`, `ENABLE_CHEER_NOTIFICATIONS=1`
+and the VAPID secrets, plus a Supabase Cron job (suggested name
+`hnf-cheer-notifications`) that POSTs to it every 15 minutes with the worker
+token, the same way as `hnf-push-delivery` but without the 6 AM / 6 PM window.
+Each cheer is pushed at most once, only within 24 hours of being sent, only to
+people with notifications on, with up to three attempts. Copy is the sender's
+first name and the cheer ("Sam cheered you on: Nice work!"), never habits or the
+group name. Check `garden_cheers.push_state` (`sent`, `skipped`, `failed`) and
+`cron.job_run_details` when diagnosing. Cheers sent before the migration are
+marked `skipped`. Turning it off: unset the flag and unschedule the cron job.

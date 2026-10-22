@@ -346,8 +346,44 @@ if (!process.exitCode) {
  await as(a);
  await query('select remove_private_group_member($1,$2)',[group,outsider]);
  await db.exec('reset role');
+ // Team goal target: about 70% of everyone's scheduled habits over the game (at least 5).
+ await as(a);
+ await query("select start_group_challenge($1,'team',7)",[group]);
+ const team=(await query("select team_target t from group_challenges where group_id=$1",[group]))[0].t;
+ const dueSum=Number((await query("select coalesce(sum((app.day_tally(m.user_id,d::date)).due),0) n from memberships m join group_sharing s on s.group_id=m.group_id and s.user_id=m.user_id cross join generate_series('2026-08-01'::date,'2026-08-07'::date,'1 day') d where m.group_id=$1 and s.show_summary",[group]))[0].n);
+ assert.equal(team,Math.max(5,Math.round(0.7*dueSum)),'team target fits the group');
+ // Streak duel: out on the first finished day with a missed habit; today never counts yet.
+ await db.exec('reset role');
  await query('delete from group_challenges where group_id=$1',[group]);
- console.log('PASS group games: points, cheers once a day, hidden scores, game picks, last game, reusable links');
+ await query("insert into group_challenges(group_id,kind,starts_on,ends_on,created_by) values($1,'streak','2026-07-27','2026-08-02',$2)",[group,a]);
+ await as(a);
+ g=await game();
+ assert.equal(g.game.kind,'streak');
+ const days=await query("select d::date::text as day,(app.day_tally($1,d::date)).* from generate_series('2026-07-27'::date,'2026-07-30'::date,'1 day') d",[a]);
+ const missed=days.find(d=>d.due>0&&d.done<d.due);
+ const aStreak=g.members.find(m=>m.user_id===a);
+ assert.equal(aStreak.out_on,missed?missed.day:null); assert.equal(aStreak.alive,!missed);
+ // Never missed: finish every scheduled habit every day of last week and earn the badge.
+ for (let d=20; d<=26; d++) {
+   const date=`2026-07-${d}`;
+   for (const {id} of await query('select id from tasks where owner_id=$1 and app.due(id,$2::date)',[a,date])) {
+     const prev=(await query('select version from completions where task_id=$1 and local_date=$2',[id,date]))[0];
+     if (!prev) await query('select save_completion($1,$2,true,0)',[id,date]);
+     else if (!(await query('select completed from completions where task_id=$1 and local_date=$2',[id,date]))[0].completed) await query('select save_completion($1,$2,true,$3)',[id,date,prev.version]);
+   }
+ }
+ await db.exec('reset role'); await query('delete from group_challenges where group_id=$1',[group]); await as(a);
+ g=await game();
+ assert.ok(g.last.badges.some(x=>x.kind==='never_missed'&&x.user_id===a),'finishing every day earns Never missed');
+ assert.ok(!g.last.badges.some(x=>x.kind==='never_missed'&&x.user_id===b),'missing a day does not');
+ // Turning links off stops reusable links too.
+ await db.exec('reset role'); await query('delete from invitations'); await as(a);
+ const link2=(await query('select issue_group_link($1) t',[group]))[0].t;
+ await query('select revoke_group_invitations($1)',[group]);
+ await as(outsider); await reject('select redeem_invitation($1)',[link2]); await as(a);
+ await db.exec('reset role');
+ await query('delete from group_challenges where group_id=$1',[group]);
+ console.log('PASS group games: points, cheers once a day, hidden scores, game picks, team target, streak outs, last game, Never missed, reusable and revoked links');
  }
  // Guided routines: builder, one run per day, Done/Skip, key-step checkoffs, undo, privacy, Sheet summary.
  {
