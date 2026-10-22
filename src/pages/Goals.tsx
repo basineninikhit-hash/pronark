@@ -34,7 +34,6 @@ const categoryLook: Record<string, { icon: ComponentType<LucideProps>; tone: Ton
   Travel: { icon: Plane, tone: 'sky', tagline: 'Somewhere new is calling.' },
   Other: { icon: Sparkles, tone: 'lavender', tagline: 'Anything else you’re dreaming of.' },
 };
-const lookFor = (key: string) => categoryLook[key] ?? categoryLook.Other;
 
 /** Pictures an item can wear. Stored by name on the item. */
 const itemIcons: [string, ComponentType<LucideProps>, string][] = [
@@ -44,9 +43,16 @@ const itemIcons: [string, ComponentType<LucideProps>, string][] = [
   ['dumbbell', Dumbbell, 'Fitness'], ['coffee', Coffee, 'Treat'], ['palette', Palette, 'Art'], ['sparkles', Sparkles, 'Something special'],
 ];
 const iconByName = Object.fromEntries(itemIcons.map(([name, Icon]) => [name, Icon])) as Record<string, ComponentType<LucideProps>>;
+const customTones: Tone[] = ['peach', 'sky', 'mint', 'rose', 'butter', 'lavender'];
+function lookFor(key: string, icon?: string | null) {
+  const builtIn = categoryLook[key];
+  if (builtIn) return builtIn;
+  const tone = customTones[[...key].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % customTones.length];
+  return { icon: (icon && iconByName[icon]) || Sparkles, tone, tagline: 'Everything you’re saving up for here.' };
+}
 
-function CategoryIcon({ category, size = 'md' }: { category: string; size?: 'md' | 'lg' }) {
-  const { icon: Icon, tone } = lookFor(category);
+function CategoryIcon({ category, icon, size = 'md' }: { category: string; icon?: string | null; size?: 'md' | 'lg' }) {
+  const { icon: Icon, tone } = lookFor(category, icon);
   return <span className={cn('grid shrink-0 place-items-center rounded-2xl ring-1 ring-inset', toneSurface[tone], size === 'lg' ? 'size-16 [&_svg]:size-8' : 'size-12 [&_svg]:size-6')} aria-hidden="true"><Icon className="text-ink" strokeWidth={1.75} /></span>;
 }
 
@@ -62,7 +68,7 @@ export function GoalsPage({ client, owner, readOnly, balance, categories, wishes
 }) {
   const [screen, setScreen] = useState<Screen>({ name: 'overview' });
   const [bubble, setBubble] = useState<Bubble | null>(null);
-  const [goalFor, setGoalFor] = useState<Category | null>(null);
+  const [goalFor, setGoalFor] = useState<Category | null>(null), [addingCategory, setAddingCategory] = useState(false);
   const [editing, setEditing] = useState<{ item: WishItem | null; categoryId: string } | null>(null);
   const [buying, setBuying] = useState<Wish | null>(null), [itemFund, setItemFund] = useState<Wish | null>(null);
   const mine = orderedCategories(categories, owner);
@@ -93,24 +99,28 @@ export function GoalsPage({ client, owner, readOnly, balance, categories, wishes
   </>;
 
   return (
-    <div className="w-full max-w-4xl">
+    <div className="w-full">
       <div ref={viewRef} className="flex flex-col gap-5">
-        {screen.name === 'overview' && <>
-          <WalletCard wallet={wallet} />
-          {warnings}
+        {screen.name === 'overview' && <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+          <div className="flex flex-col gap-4 lg:sticky lg:top-20">
+            <WalletCard wallet={wallet} />
+            {warnings}
+          </div>
           <section aria-labelledby="top-categories" className="flex flex-col gap-3">
             <div className="flex flex-wrap items-end justify-between gap-2">
               <h2 id="top-categories" className="text-title">Your top 3 wish categories</h2>
               <Button variant="ghost" className="-mr-2" onClick={() => go({ name: 'all' })}>View all categories<ArrowRight data-icon="inline-end" /></Button>
             </div>
+            <p className="-mt-1 flex items-start gap-2 text-sm text-muted-foreground"><Pencil className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              <span>Set a total goal for any category with <strong className="font-semibold text-foreground">Edit goal</strong>, or add the items you want. Each item’s price adds to that category’s goal automatically.</span></p>
             {mine.slice(0, 3).map((c) => <CategoryCard key={c.id} {...cardProps(c, 'card')} />)}
             {!mine.length && <EmptyState>Your categories are loading. If they stay empty, refresh the page.</EmptyState>}
             {!readOnly && mine.length > 0 && <DreamButton onClick={() => setEditing({ item: null, categoryId: mine[0].id })}>Add a wish</DreamButton>}
           </section>
-        </>}
+        </div>}
 
         {screen.name === 'all' && <AllCategories mine={mine} cardProps={(c) => cardProps(c, 'card')} readOnly={readOnly} busy={busy} onBack={() => go({ name: 'overview' })}
-          onAdd={() => mine[0] && setEditing({ item: null, categoryId: mine[0].id })}
+          onAdd={() => setAddingCategory(true)}
           onSaveOrder={(ids) => onRun(() => rpc('save_goal_priority_order', { p_categories: ids }), '')} />}
 
         {screen.name === 'category' && selected && <>
@@ -122,10 +132,10 @@ export function GoalsPage({ client, owner, readOnly, balance, categories, wishes
               <div><h2 id="shelf" className="text-title">Things on this shelf</h2><p className="text-sm text-muted-foreground">Make the goal feel real with specific wishes.</p></div>
               {!readOnly && <Button size="lg" onClick={() => setEditing({ item: null, categoryId: selected.id })}><Plus data-icon="inline-start" />Add item</Button>}
             </div>
-            {summary(selected).items.map((w) => (
-              <ItemCard key={w.id} item={w as WishItem} category={selected.category_key} saved={itemSaved(w.id)} readOnly={readOnly} busy={busy} itemAllocationReady={itemAllocationReady}
+            <div className="grid gap-3 lg:grid-cols-2">{summary(selected).items.map((w) => (
+              <ItemCard key={w.id} item={w as WishItem} category={selected.category_key} categoryIcon={selected.icon} saved={itemSaved(w.id)} readOnly={readOnly} busy={busy} itemAllocationReady={itemAllocationReady}
                 onEdit={() => setEditing({ item: w as WishItem, categoryId: selected.id })} onFund={() => setItemFund(w)} onBuy={() => setBuying(w)} />
-            ))}
+            ))}</div>
             {!readOnly && <DreamButton onClick={() => setEditing({ item: null, categoryId: selected.id })}>Add something you’re dreaming of</DreamButton>}
             {wishes.some((w) => w.category_id === selected.id && w.status === 'purchased') && (
               <div className="flex flex-col gap-1.5 pt-1">
@@ -137,6 +147,14 @@ export function GoalsPage({ client, owner, readOnly, balance, categories, wishes
           <GoalTargetPlan key={selected.id} client={client} categoryId={selected.id} today={today} readOnly={readOnly} />
         </>}
       </div>
+
+      <Sheet open={addingCategory} onClose={() => setAddingCategory(false)} title="Add a category" description="Make a shelf for anything you’re saving toward. Then set a goal or add items to it.">
+        {addingCategory && <CategoryForm busy={busy} taken={mine.map((c) => c.category_key.toLowerCase())} onClose={() => setAddingCategory(false)}
+          onSave={(name, icon) => onRun(async () => {
+            try { await rpc('create_wish_category', { p_name: name, p_icon: icon }); }
+            catch (e) { if (/create_wish_category|schema cache/i.test(String((e as { message?: string })?.message ?? e))) throw new Error('Adding categories needs the latest database update (202610230028_custom_categories.sql).'); throw e; }
+          }, `${name} is on your wishlist!`).then((ok) => { if (ok) setAddingCategory(false); return ok; })} />}
+      </Sheet>
 
       <Sheet open={!!goalFor} onClose={() => setGoalFor(null)} title={`How much do you want to save for ${goalFor?.category_key ?? ''}?`}
         description="Pick any amount, even more than you have now. Changing a goal never assigns or spends wallet dollars.">
@@ -223,7 +241,7 @@ function CategoryCard({ category: c, summary: s, wallet, readOnly, busy, bubble,
     <article className="relative rounded-3xl bg-card p-4 ring-1 ring-foreground/8">
       <div className="flex flex-wrap items-center gap-3.5">
         {children}
-        <CategoryIcon category={c.category_key} />
+        <CategoryIcon category={c.category_key} icon={c.icon} />
         <div className="flex min-w-0 flex-1 basis-40 flex-col gap-1.5">
           <h3 className="truncate text-[1.0625rem] font-semibold">{c.category_key}</h3>
           <p className="tabular text-sm text-muted-foreground">{amountLine(s)}</p>
@@ -241,14 +259,14 @@ function CategoryCard({ category: c, summary: s, wallet, readOnly, busy, bubble,
 }
 
 function CategoryHero({ category: c, summary: s, wallet, readOnly, busy, bubble, onBubble, onAssign, onUnassign, onView, onEditGoal }: CardProps) {
-  const { tone, tagline } = lookFor(c.category_key);
+  const { tone, tagline } = lookFor(c.category_key, c.icon);
   const assignRef = useRef<HTMLButtonElement>(null);
   const over = s.assigned > s.target && s.target > 0;
   return (
     <section aria-label={c.category_key} className={cn('relative flex flex-col gap-4 rounded-3xl p-4 ring-1 ring-inset md:p-5', toneSurface[tone])}>
       <Pop tone={tone} className="absolute top-3 right-3 size-9" />
       <div className="flex items-center gap-4 pr-10">
-        <CategoryIcon category={c.category_key} size="lg" />
+        <CategoryIcon category={c.category_key} icon={c.icon} size="lg" />
         <div className="min-w-0"><h2 className="text-title text-3xl font-bold text-foreground md:text-4xl">{c.category_key}</h2><p className="mt-0.5 text-sm">{tagline}</p></div>
       </div>
       <div className="flex flex-col gap-2 rounded-2xl bg-card/80 p-3.5 text-foreground">
@@ -360,7 +378,7 @@ function AllCategories({ mine, cardProps, readOnly, busy, onBack, onAdd, onSaveO
       <Button variant="ghost" className="-ml-2 self-start" onClick={onBack}><ArrowLeft data-icon="inline-start" />Your Wishlist</Button>
       <div className="-mt-2 flex flex-wrap items-end justify-between gap-3">
         <div><h2 className="text-title text-3xl font-bold md:text-4xl">All wish categories</h2><p className="mt-1 text-muted-foreground">Put your most important categories first.</p></div>
-        {!readOnly && <Button size="lg" onClick={onAdd}><Plus data-icon="inline-start" />Add a wish</Button>}
+        {!readOnly && <Button size="lg" onClick={onAdd}><Plus data-icon="inline-start" />Add a category</Button>}
       </div>
       {!readOnly && <p className="flex items-center gap-2 rounded-2xl bg-lavender px-4 py-3 text-sm text-lavender-ink"><GripVertical className="size-4 shrink-0" aria-hidden="true" />Drag a category or use the arrows to reorder. Your first three show on your Wishlist.</p>}
       <ol ref={container as RefObject<HTMLOListElement | null>} className="flex flex-col gap-2.5" aria-label="Wish categories in order">
@@ -379,14 +397,15 @@ function AllCategories({ mine, cardProps, readOnly, busy, onBack, onAdd, onSaveO
           </li>
         ))}
       </ol>
+      {!readOnly && <DreamButton onClick={onAdd}>Add a category</DreamButton>}
     </>
   );
 }
 
-function ItemCard({ item, category, saved, readOnly, busy, itemAllocationReady, onEdit, onFund, onBuy }: {
-  item: WishItem; category: string; saved: number; readOnly: boolean; busy: boolean; itemAllocationReady: boolean; onEdit: () => void; onFund: () => void; onBuy: () => void;
+function ItemCard({ item, category, categoryIcon, saved, readOnly, busy, itemAllocationReady, onEdit, onFund, onBuy }: {
+  item: WishItem; category: string; categoryIcon?: string | null; saved: number; readOnly: boolean; busy: boolean; itemAllocationReady: boolean; onEdit: () => void; onFund: () => void; onBuy: () => void;
 }) {
-  const { tone, icon: Fallback } = lookFor(category);
+  const { tone, icon: Fallback } = lookFor(category, categoryIcon);
   const Icon = (item.icon && iconByName[item.icon]) || Fallback;
   const pct = item.estimated_cents > 0 ? Math.min(100, Math.round((saved / item.estimated_cents) * 100)) : 0;
   return (
@@ -452,8 +471,8 @@ function WishForm({ item, categories, categoryId, busy, onClose, onSave }: {
   const [title, setTitle] = useState(item?.title ?? ''), [estimate, setEstimate] = useState(item ? (item.estimated_cents / 100).toFixed(2) : '');
   const [url, setUrl] = useState(item?.external_url ?? ''), [note, setNote] = useState(item?.note ?? ''), [icon, setIcon] = useState<string | null>(item?.icon ?? null);
   const priceOk = moneyPattern.test(estimate) && Number(estimate) > 0, urlOk = url === '' || /^https?:\/\//.test(url);
-  const categoryName = categories.find((c) => c.id === category)?.category_key ?? 'Other';
-  const Fallback = lookFor(categoryName).icon;
+  const chosen = categories.find((c) => c.id === category), categoryName = chosen?.category_key ?? 'Other';
+  const Fallback = lookFor(categoryName, chosen?.icon).icon;
   return (
     <Form>
       <FormField label="What are you wishing for?"><Input value={title} maxLength={200} autoFocus onChange={(e) => setTitle(e.target.value)} placeholder="New running shoes, a weekend trip…" /></FormField>
@@ -534,6 +553,27 @@ function GoalPurchaseForm({ item, today, balance, assigned, busy, onClose, onSav
         <Button variant="outline" onClick={onClose}>Cancel</Button>
         <Button disabled={busy || (early && !negative) || !title.trim() || !moneyPattern.test(amount) || Number(amount) <= 0 || date > today}
           onClick={() => { if ((early || negative) && !confirm('Record this early purchase despite the savings warning?')) return; onSave(id, title, amountCents, date, note); }}>Save purchase</Button>
+      </SheetFooter>
+    </Form>
+  );
+}
+
+function CategoryForm({ busy, taken, onClose, onSave }: { busy: boolean; taken: string[]; onClose: () => void; onSave: (name: string, icon: string | null) => Promise<boolean> }) {
+  const [name, setName] = useState(''), [icon, setIcon] = useState<string | null>('gift');
+  const clean = name.trim(), duplicate = taken.includes(clean.toLowerCase());
+  return (
+    <Form>
+      <FormField label="Category name"><Input value={name} maxLength={40} autoFocus onChange={(e) => setName(e.target.value)} placeholder="Concerts, Gaming, Pet stuff…" aria-invalid={duplicate} /></FormField>
+      {duplicate && <p className="text-sm text-destructive">You already have a category called that.</p>}
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-2 text-sm font-medium">Pick a picture</legend>
+        <div role="radiogroup" aria-label="Category picture" className="grid grid-cols-6 gap-1.5 sm:grid-cols-8">
+          {itemIcons.map(([value, Icon, label]) => <IconChoice key={value} selected={icon === value} label={label} onSelect={() => setIcon(value)}><Icon /></IconChoice>)}
+        </div>
+      </fieldset>
+      <SheetFooter>
+        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button disabled={busy || !clean || duplicate} onClick={() => onSave(clean, icon)}>Add category</Button>
       </SheetFooter>
     </Form>
   );

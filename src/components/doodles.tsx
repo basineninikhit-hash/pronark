@@ -64,3 +64,6 @@ export function StarDoodle({ className }: { className?: string }) {
 export function TrophyDoodle({ className }: { className?: string }) {
   return <svg viewBox="0 0 48 48" className={className} aria-hidden="true"><path d="M15 8h18v8a9 9 0 0 1-18 0z" {...filled('var(--butter-pop)')} /><path d="M15 11H9c0 6 3 9 7 9M33 11h6c0 6-3 9-7 9M24 25v8M17 40h14l-2-7H19z" {...ink} /><path d="M38 3l1 3M43 7l3-1" {...ink} /></svg>;
 }
+export function WalletDoodle({ className }: { className?: string }) {
+  return <svg viewBox="0 0 48 48" className={className} aria-hidden="true"><path d="M9 15l23-7 3 7" {...filled('var(--doodle-mint)')} /><rect x="6" y="15" width="34" height="25" rx="5" {...filled('var(--peach-pop)')} /><path d="M30 23h12v10H30a5 5 0 0 1 0-10z" {...filled('var(--doodle-gold)')} /><circle cx="31" cy="28" r="1.6" fill="currentColor" /><path d="M41 7l2-3M45 12l3-1" {...ink} /></svg>;
+}

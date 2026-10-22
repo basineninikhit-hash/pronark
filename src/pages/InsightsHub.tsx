@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { ArrowLeft, ArrowRight, BellRing, CalendarDays, Check, ChartColumn, ChevronRight, FileText, Info, Sparkles, TrendingUp, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { MonthSwitcher } from '@/components/month-switcher';
 import { ActivityIcon, AnimatedNumber, Disclosure, EmptyState } from '@/components/pronark';
 import { CalendarCheckDoodle, GiftBoxDoodle, StarDoodle, TrophyDoodle } from '@/components/doodles';
 import { PlayStat, Pop, toneSurface, type Tone } from '@/components/playful';
@@ -58,14 +58,15 @@ export function InsightsHub({ client, owner, today, tasks, settings, completions
   const insight = view.name === 'insight' ? insights.find((i) => i.id === view.id) : undefined;
 
   return (
-    <div className="w-full max-w-5xl overflow-x-clip">
+    <div className="w-full overflow-x-clip">
       <div ref={screenRef} className="flex flex-col gap-6">
         {view.name === 'overview' && (
           <>
             <div className="flex justify-end">
-              <NativeSelect className="w-full sm:w-72" aria-label="Month" value={month} onChange={(e) => setMonth(e.target.value)}>
-                {months.map((m) => <NativeSelectOption key={m} value={m}>{formatDate(m, { month: 'long', year: 'numeric' })} · {m === currentMonth ? 'so far' : 'complete month'}</NativeSelectOption>)}
-              </NativeSelect>
+              {/* months runs newest first, so "previous" is one step further down the list. */}
+              <MonthSwitcher className="w-full sm:w-auto" label={formatDate(month, { month: 'long', year: 'numeric' })} hint={month === currentMonth ? 'So far' : 'Complete month'}
+                prevDisabled={months.indexOf(month) >= months.length - 1} nextDisabled={months.indexOf(month) <= 0}
+                onPrev={() => setMonth(months[Math.min(months.length - 1, months.indexOf(month) + 1)])} onNext={() => setMonth(months[Math.max(0, months.indexOf(month) - 1)])} />
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
               <PlayStat layout="stack" tone="mint" icon={<CalendarCheckDoodle />} label="Checkoffs" value={<>{done} of {records.length}</>} hint={`scheduled checkoffs completed${month === currentMonth ? ' so far' : ''}.`} />

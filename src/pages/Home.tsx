@@ -1,11 +1,11 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowDown, ArrowUp, Check, Flame, Info, Pencil, Plus, Wallet as WalletIcon } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, Flame, Info, Pencil, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AnimatedNumber, EmptyState, Meter, StatTile } from '@/components/pronark';
-import { BarsDoodle, CoinsDoodle, HandNote, Sparkle } from '@/components/doodles';
+import { AnimatedNumber, EmptyState, Meter } from '@/components/pronark';
+import { BarsDoodle, CoinsDoodle, HandNote, Sparkle, WalletDoodle } from '@/components/doodles';
 import { HabitBubble, PlayStat, Pop } from '@/components/playful';
 import { cn } from '@/lib/utils';
 import { cents, periodLabels, settingFor, streakFor, type ActivityKpi, type ActivityKpiLog, type BonusProgress, type Completion, type Setting, type Task, type TaskPeriod } from '@/lib/domain';
@@ -52,20 +52,21 @@ export function HomePage(props: HomeProps) {
     : `Nice work, ${first}! ${done} of ${due.length} wins today.`;
 
   return (
-    <div className="flex w-full max-w-6xl flex-col gap-6">
+    <div className="flex w-full flex-col gap-6">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <PlayStat className="col-span-2 sm:col-span-1" tone="mint" icon={<BarsDoodle />} label="Today’s progress" value={<>{done} of {due.length}</>}
           hint={!due.length ? 'A rest day is a win too.' : done === 0 ? 'A fresh start is a win.' : done === due.length ? 'Every one. Wow.' : `${due.length - done} to go. You’ve got this.`} />
         <PlayStat tone="lavender" icon={<CoinsDoodle />} label="Today’s earned" value={<AnimatedNumber value={props.earnedToday} format={cents} />} />
         <button type="button" onClick={props.onWallet} className="rounded-3xl text-left transition-[scale] duration-100 active:scale-[0.98]" aria-label={`Available in wallet ${cents(props.balance)}. Open rewards.`}>
-          <PlayStat tone="peach" icon={<WalletIcon strokeWidth={1.75} />} label="Available in wallet" value={<AnimatedNumber value={props.balance} format={cents} />} className="h-full" />
+          <PlayStat tone="peach" icon={<WalletDoodle />} label="Available in wallet" value={<AnimatedNumber value={props.balance} format={cents} />} className="h-full" />
         </button>
       </div>
 
       {props.intro}
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_17rem]">
-        <section className="flex flex-col gap-3 rounded-3xl bg-card p-4 ring-1 ring-foreground/8 md:p-6" aria-labelledby="checklist-title">
+      {/* Wide screens: habits on the left; companion, progress and streaks beside them. Phones: companion, habits, progress, streaks. */}
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <section className="flex flex-col gap-3 rounded-3xl bg-card p-4 ring-1 ring-foreground/8 md:p-6 lg:col-start-1 lg:row-span-3 lg:row-start-1" aria-labelledby="checklist-title">
           <div className="flex items-start justify-between gap-2">
             <div>
               <h2 id="checklist-title" className="text-title text-2xl font-bold md:text-3xl">Today’s habits</h2>
@@ -106,7 +107,7 @@ export function HomePage(props: HomeProps) {
         </section>
 
         {/* Companion with a handwritten speech bubble; first on phones, beside the list on wide screens. */}
-        <aside className="relative order-first flex items-center gap-4 overflow-hidden rounded-3xl bg-card p-4 ring-1 ring-foreground/8 lg:order-none lg:sticky lg:top-20 lg:flex-col lg:p-5" aria-label="Today at a glance">
+        <aside className="relative order-first flex items-center gap-4 overflow-hidden rounded-3xl bg-card p-4 ring-1 ring-foreground/8 lg:order-none lg:col-start-2 lg:row-start-1 lg:flex-col lg:p-5" aria-label="Today at a glance">
           <Sparkle className="absolute top-3 right-3 hidden size-7 text-ink lg:block" />
           <Pop tone="lavender" className="absolute bottom-16 left-2 hidden size-8 -scale-x-100 lg:block" />
           <div className="flex min-w-0 flex-1 flex-col gap-3 lg:order-1 lg:w-full">
@@ -119,19 +120,21 @@ export function HomePage(props: HomeProps) {
             </div>
           </div>
         </aside>
-      </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <StatTile label="Earned this week" value={cents(props.earnedWeek)} />
-        <StatTile label="Earned this month" value={cents(props.earnedMonth)} />
-      </div>
+      <section className="flex flex-col gap-3 rounded-3xl bg-card p-4 ring-1 ring-foreground/8 lg:col-start-2" aria-labelledby="progress-title">
+        <h2 id="progress-title" className="text-headline">Progress this week!</h2>
+        <div className="grid grid-cols-2 gap-2.5">
+          <div className="rounded-2xl bg-mint p-3 text-mint-ink"><p className="text-xs font-medium">Earned this week</p><p className="tabular mt-0.5 text-xl font-bold text-foreground">{cents(props.earnedWeek)}</p></div>
+          <div className="rounded-2xl bg-lavender p-3 text-lavender-ink"><p className="text-xs font-medium">Earned this month</p><p className="tabular mt-0.5 text-xl font-bold text-foreground">{cents(props.earnedMonth)}</p></div>
+        </div>
+      </section>
 
-      <section className="flex flex-col gap-3" aria-labelledby="streaks-title">
+      <section className="flex flex-col gap-3 lg:col-start-2" aria-labelledby="streaks-title">
         <h2 id="streaks-title" className="text-title">Your streaks</h2>
         {props.balance <= 0 && <Alert variant="warning"><AlertDescription>Your activity streaks still count. Bonus progress is paused until your wallet is positive.</AlertDescription></Alert>}
         {!props.bonusProgressReady && <Alert variant="info"><AlertDescription>Bonus progress will appear after the Rewards database update.</AlertDescription></Alert>}
         {streaks.length ? (
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
             {streaks.map(({ task, streak }) => {
               const eligible = props.bonusProgress.find((p) => p.task_id === task.id)?.eligible_days ?? 0, milestone = eligible < 14 ? 14 : 28, remaining = Math.max(0, milestone - eligible);
               return (
@@ -153,6 +156,7 @@ export function HomePage(props: HomeProps) {
           </div>
         ) : <EmptyState icon={<Flame className="size-5" aria-hidden="true" />}>Complete a scheduled activity to start a streak. Your active streaks will appear here.</EmptyState>}
       </section>
+      </div>
     </div>
   );
 }

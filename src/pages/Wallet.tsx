@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { Camera, ChevronDown, ChevronRight, Coins, Info, PencilLine, Plus, Receipt, Wallet as WalletIcon } from 'lucide-react';
-import { CoinsDoodle, StarDoodle } from '@/components/doodles';
+import { Camera, ChevronDown, ChevronRight, Coins, Info, PencilLine, Plus, Receipt } from 'lucide-react';
+import { CoinsDoodle, StarDoodle, WalletDoodle } from '@/components/doodles';
 import { PlayStat } from '@/components/playful';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -34,11 +34,11 @@ export function WalletPage({ client, readOnly, today, earned, spent, balance, ea
   const pick = (next: 'photo' | 'form') => { setEdit(null); setSheet(next); };
 
   return (
-    <div className="flex w-full max-w-5xl flex-col gap-4">
+    <div className="flex w-full flex-col gap-4">
       <div className="grid gap-3 sm:grid-cols-3">
         <PlayStat layout="stack" tone="mint" icon={<CoinsDoodle />} label="Available in wallet" value={<AnimatedNumber value={balance} format={cents} />} hint="Ready to use for your rewards." />
         <PlayStat layout="stack" tone="lavender" icon={<StarDoodle />} label="Total earned" value={<AnimatedNumber value={earned} format={cents} />} hint="From your habit progress." />
-        <PlayStat layout="stack" tone="peach" icon={<WalletIcon strokeWidth={1.75} />} label="Recorded spending" value={<AnimatedNumber value={spent} format={cents} />} hint="On rewards you chose." />
+        <PlayStat layout="stack" tone="peach" icon={<WalletDoodle />} label="Recorded spending" value={<AnimatedNumber value={spent} format={cents} />} hint="On rewards you chose." />
       </div>
       <p className="flex items-center gap-3 rounded-2xl bg-lavender px-4 py-3 text-sm text-lavender-ink">
         <Info className="size-5 shrink-0" aria-hidden="true" />Pronark tracks rewards you set aside; it does not move money.

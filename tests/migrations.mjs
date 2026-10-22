@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 
 const db = new PGlite();
 await db.exec(`create role anon; create role authenticated; create role service_role; create schema auth; create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz); create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; create function digest(text,text) returns bytea language sql immutable as $$ select decode(md5($1),'hex') $$; create function gen_random_bytes(integer) returns bytea language sql volatile as $$ select decode(repeat('ab',$1),'hex') $$;`);
-for (const file of ['supabase/migrations/202609210001_foundation.sql','supabase/migrations/202609210002_rewards.sql','supabase/migrations/202609210003_rpc_permissions.sql','supabase/migrations/202609210004_atomic_setup.sql','supabase/migrations/202609220005_program_features.sql','supabase/migrations/202609220006_delivery_and_mirror.sql','supabase/migrations/202609220007_weekly_delivery_leases.sql','supabase/migrations/202609220008_sandbox_report_consent.sql','supabase/migrations/202609220009_invitation_pgcrypto_path.sql','supabase/migrations/202609220010_push_delivery_leases.sql','supabase/migrations/202609250011_goals_profile.sql','supabase/migrations/202609260012_rewards_overhaul.sql','supabase/migrations/202609260013_positive_balance_bonuses.sql','supabase/migrations/202610070014_activity_kpis.sql','supabase/migrations/202610080015_private_metrics.sql','supabase/migrations/202610080016_checklist_presentation.sql','supabase/migrations/202610080017_goal_target_growth.sql','supabase/migrations/202610080018_guided_onboarding.sql','supabase/migrations/202610100019_companion_reactions.sql','supabase/migrations/202610100020_custom_reminders.sql','supabase/migrations/202610100021_private_groups.sql','supabase/migrations/202610100022_together_garden.sql','supabase/migrations/202610200023_start_over.sql','supabase/migrations/202610210024_companion_character.sql','supabase/migrations/202610220025_guided_routines.sql','supabase/migrations/202610230026_group_games.sql','supabase/migrations/202610230027_wishlist.sql']) {
+for (const file of ['supabase/migrations/202609210001_foundation.sql','supabase/migrations/202609210002_rewards.sql','supabase/migrations/202609210003_rpc_permissions.sql','supabase/migrations/202609210004_atomic_setup.sql','supabase/migrations/202609220005_program_features.sql','supabase/migrations/202609220006_delivery_and_mirror.sql','supabase/migrations/202609220007_weekly_delivery_leases.sql','supabase/migrations/202609220008_sandbox_report_consent.sql','supabase/migrations/202609220009_invitation_pgcrypto_path.sql','supabase/migrations/202609220010_push_delivery_leases.sql','supabase/migrations/202609250011_goals_profile.sql','supabase/migrations/202609260012_rewards_overhaul.sql','supabase/migrations/202609260013_positive_balance_bonuses.sql','supabase/migrations/202610070014_activity_kpis.sql','supabase/migrations/202610080015_private_metrics.sql','supabase/migrations/202610080016_checklist_presentation.sql','supabase/migrations/202610080017_goal_target_growth.sql','supabase/migrations/202610080018_guided_onboarding.sql','supabase/migrations/202610100019_companion_reactions.sql','supabase/migrations/202610100020_custom_reminders.sql','supabase/migrations/202610100021_private_groups.sql','supabase/migrations/202610100022_together_garden.sql','supabase/migrations/202610200023_start_over.sql','supabase/migrations/202610210024_companion_character.sql','supabase/migrations/202610220025_guided_routines.sql','supabase/migrations/202610230026_group_games.sql','supabase/migrations/202610230027_wishlist.sql','supabase/migrations/202610230028_custom_categories.sql']) {
   try { await db.exec(readFileSync(file,'utf8').replace('create extension if not exists pgcrypto;','')); console.log(`PASS migration ${file}`); }
   catch (error) { console.error(`FAIL migration ${file}: ${error.message}`); process.exitCode=1; break; }
 }
@@ -173,7 +173,20 @@ if (!process.exitCode) {
  await reject('select set_wishlist_item_icon($1,$2)',[item,'Bad Icon!']);
  await as(b); await reject('select set_wishlist_item_icon($1,$2)',[item,'gift']); await as(a);
  await query('select set_wishlist_item_icon($1,$2)',[item,null]);
- console.log('PASS wishlist: unassign limits, item savings return last, wallet unchanged, item icons');
+ // Custom categories: named, optional icon, unique per person, added at the end of the order.
+ const custom=(await query("select create_wish_category($1,$2) id",['Concert tickets','ticket']))[0].id;
+ const mineCats=await query('select id,category_key,priority_order,icon from categories where owner_id=$1 order by priority_order',[a]);
+ assert.equal(mineCats.at(-1).id,custom,'new category goes last');
+ assert.equal(mineCats.at(-1).icon,'ticket');
+ assert.ok(mineCats.every(c=>c.priority_order!==null),'starter categories get a place first');
+ await reject("select create_wish_category($1,$2)",['concert TICKETS',null]);
+ await reject("select create_wish_category($1,$2)",['   ',null]);
+ await reject("select create_wish_category($1,$2)",['x'.repeat(41),null]);
+ await reject("select create_wish_category($1,$2)",['Shoes','Bad!']);
+ await query('select fund_category($1,$2,$3)',[custom,100,null]);
+ await query('select unassign_category($1,$2)',[custom,100]);
+ await as(outsider); await db.exec('set role authenticated'); assert.equal((await query('select count(*)::int n from categories where id=$1',[custom]))[0].n,0,'people outside the group never see it'); await db.exec('reset role'); await as(a);
+ console.log('PASS wishlist: unassign limits, item savings return last, wallet unchanged, item icons, custom categories');
  }
  const template='12121212-1212-4121-8121-121212121212';
  await query('select save_template($1,$2,$3,$4,$5,$6,$7)',[template,'Skin plan','Night skin care','Step one\nStep two',[1,3,5],100,null]);

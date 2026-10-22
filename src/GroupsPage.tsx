@@ -72,7 +72,7 @@ export function GroupsPage({ client, owner, tasks, initialGroup, character }: { 
 
   if (groups === null) return <p className="text-sm text-muted-foreground">Loading your groups…</p>;
   if (!groups.length) return (
-    <div className="flex w-full max-w-2xl flex-col gap-5">
+    <div className="grid w-full items-start gap-5 lg:grid-cols-2">
       <StartCard character={character} onCreate={() => setCreateOpen(true)} onJoin={() => setJoinOpen(true)} />
       <ErrorText>{error}</ErrorText>{createSheet}{joinSheet}
     </div>
@@ -81,7 +81,7 @@ export function GroupsPage({ client, owner, tasks, initialGroup, character }: { 
   const me = state?.members.find((m) => m.user_id === owner);
   const isOwner = group?.owner_id === owner;
   return (
-    <div className="flex w-full max-w-2xl flex-col gap-5">
+    <div className="flex w-full flex-col gap-5">
       {view === 'home' && <>
         <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Group">
           {groups.map((g) => <button key={g.id} type="button" role="radio" aria-checked={selected === g.id} onClick={() => setSelected(g.id)}
@@ -89,13 +89,15 @@ export function GroupsPage({ client, owner, tasks, initialGroup, character }: { 
           <Button variant="ghost" onClick={() => setCreateOpen(true)}><Plus data-icon="inline-start" />New group</Button>
           <Button variant="ghost" onClick={() => setJoinOpen(true)}><Link2 data-icon="inline-start" />Join</Button>
         </div>
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_24rem]">
         {state ? <GameCard state={state} owner={owner} onCheer={setCheering} onInvite={() => open('invite')} /> : !error && <div className="h-80 animate-pulse rounded-3xl bg-card/60" aria-label="Loading the game" />}
         <div className="flex flex-col gap-2">
           <NavRow icon={<Flag />} title="How can I earn points?" onClick={() => open('points')}>Change the game or see how scoring works.</NavRow>
           <NavRow icon={<Trophy />} title="Is your group killing it?" onClick={() => open('results')}>Last game’s podium and what everyone earned.</NavRow>
           <NavRow icon={<UserPlus />} title="Invite friends" onClick={() => open('invite')}>Share a link and choose what they see.</NavRow>
+          <Button variant="ghost" className="self-center text-muted-foreground" onClick={() => open('manage')}><Settings2 data-icon="inline-start" />Manage group</Button>
         </div>
-        <Button variant="ghost" className="self-center text-muted-foreground" onClick={() => open('manage')}><Settings2 data-icon="inline-start" />Manage group</Button>
+        </div>
       </>}
 
       {view === 'points' && state && <>{back()}<PointsView state={state} busy={busy}
@@ -113,7 +115,7 @@ export function GroupsPage({ client, owner, tasks, initialGroup, character }: { 
         onRevoke={() => act(() => client.rpc('revoke_group_invitations', { p_group: selected }), 'Invite links turned off.')} onError={setError} /></>}
       {view === 'habits' && group && <>{back('invite', 'Back to invite and sharing')}
         <ScreenTitle title="Which habits can they see?" subtitle={`Friends in ${group.name} can see and cheer these. Your score always counts every habit.`} />
-        <div className="flex flex-col gap-0.5 rounded-2xl bg-card p-3 ring-1 ring-foreground/8">
+        <div className="grid gap-0.5 rounded-2xl bg-card p-3 ring-1 ring-foreground/8 sm:grid-cols-2">
           {tasks.filter((t) => !t.archive_date).map((t) => <CheckRow key={t.id} checked={sharedIds.includes(t.id)} disabled={busy || !sharing?.show_summary}
             onChange={(v) => act(() => client.rpc('set_group_activity_share', { p_group: selected, p_task: t.id, p_shared: v }), '')}>{t.title}</CheckRow>)}
         </div>
@@ -313,7 +315,7 @@ function PointsView({ state, busy, onStart }: { state: GameState; busy: boolean;
       </div>
       <section aria-labelledby="pick-game" className="flex flex-col gap-3">
         <div><h3 id="pick-game" className="text-headline">Pick the next game</h3><p className="text-sm text-muted-foreground">Everyone in the group plays. It starts tomorrow morning.</p></div>
-        <div role="radiogroup" aria-label="Game" className="flex flex-col gap-2.5">
+        <div role="radiogroup" aria-label="Game" className="grid gap-2.5 lg:grid-cols-3">
           {games.map((g) => {
             const tone = gameTone[g.id], on = kind === g.id;
             return (
@@ -377,6 +379,7 @@ function ResultsView({ state, owner, onPick }: { state: GameState; owner: string
       </div>
       {last.kind === 'team' && <NotePanel tone="mint" icon={<Sprout className="size-5" aria-hidden="true" />} title={reached ? 'The team plant bloomed!' : `${last.team_total} of ${last.team_target} check-offs`}>
         {reached ? `${last.team_total} check-offs together. Everyone earned the Grower badge.` : 'Pick a team goal again and finish what you started.'}</NotePanel>}
+      <div className="grid items-start gap-5 lg:grid-cols-2">
       {top.length > 0 && <section aria-label="Podium" className="relative overflow-hidden rounded-3xl bg-lavender px-3 pt-6 ring-1 ring-inset ring-lavender-pop/30">
         <Pop tone="lavender" className="absolute top-3 left-3 size-9 -scale-x-100" /><Pop tone="lavender" className="absolute top-3 right-3 size-9" />
         <div className="grid grid-cols-3 items-end gap-2">
@@ -395,10 +398,11 @@ function ResultsView({ state, owner, onPick }: { state: GameState; owner: string
           })}
         </div>
       </section>}
+      <div className="flex flex-col gap-4">
       {mine?.visible && <PlayStat tone="mint" icon={<TrendingUp strokeWidth={1.75} />} label={myPlace >= 0 ? `You finished ${['1st', '2nd', '3rd'][myPlace]}` : 'Your game'} value={last.kind === 'team' ? `${mine.checkoffs} check-offs` : `${mine.points} points`} />}
       <section aria-label="Badges" className="flex flex-col gap-2.5">
         <h3 className="text-headline">Badges</h3>
-        {last.badges.length ? <div className="grid gap-2.5 sm:grid-cols-3">
+        {last.badges.length ? <div className="grid gap-2.5 sm:grid-cols-3 lg:grid-cols-1">
           {last.badges.map((b) => { const info = badgeInfo[b.kind]; return (
             <PlayStat key={b.kind + b.user_id} tone={info.tone} icon={info.icon} label={info.title}
               value={<span className="text-xl">{b.user_id === owner ? 'You' : firstName(b.name)}</span>}
@@ -406,6 +410,8 @@ function ResultsView({ state, owner, onPick }: { state: GameState; owner: string
           ); })}
         </div> : <EmptyState>No badges this time. Finish every day, cheer a lot, or beat your last score to earn one.</EmptyState>}
       </section>
+      </div>
+      </div>
       <Button size="lg" onClick={onPick}>Pick this week’s game</Button>
     </>
   );
@@ -430,6 +436,7 @@ function InviteView({ client, group, isOwner, ownerName, sharing, sharedCount, b
   return (
     <>
       <ScreenTitle title="Invite friends" subtitle={`When they tap your link, they join ${group.name}.`} />
+      <div className="grid items-start gap-5 lg:grid-cols-2">
       {isOwner ? (
         <section aria-label="Invite link" className={cn('relative flex flex-col gap-2.5 overflow-hidden rounded-3xl p-4 ring-1 ring-inset', toneSurface.mint)}>
           {!link && <Pop tone="mint" className="absolute top-3 right-3 size-8" />}
@@ -463,6 +470,7 @@ function InviteView({ client, group, isOwner, ownerName, sharing, sharedCount, b
           <ChevronRight className="size-5 text-muted-foreground" aria-hidden="true" />
         </button> : null}
       </section>
+      </div>
     </>
   );
 }
@@ -494,7 +502,7 @@ function StartCard({ character, onCreate, onJoin }: { character: CharacterStyle;
   const steps: [string, string, Tone][] = [['Make a group', 'and send friends a link.', 'mint'], ['Check off your habits', 'like you already do. Each one scores a point.', 'sky'], ['Win the week,', 'earn badges and cheer each other on.', 'butter']];
   return (
     <>
-      <section className="relative flex flex-col items-center overflow-hidden rounded-3xl bg-lavender px-4 pt-4 ring-1 ring-inset ring-lavender-pop/30">
+      <section className="relative flex flex-col items-center overflow-hidden rounded-3xl bg-lavender px-4 pt-4 ring-1 ring-inset ring-lavender-pop/30 lg:row-span-2">
         <Pop tone="lavender" className="absolute top-3 right-3 size-9" />
         <div className="self-stretch pr-8"><Bubble>Habits stick better with friends. Want to bring a few along?</Bubble></div>
         <div className="flex items-end">

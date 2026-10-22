@@ -116,7 +116,7 @@ export function RoutinesPage({ ready, readOnly, routines, categories, steps, run
   };
 
   return (
-    <div className="flex w-full max-w-4xl flex-col gap-6">
+    <div className="flex w-full flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">Turn your habits into a plan you can follow one step at a time.</p>
         <Button onClick={() => go({ name: 'build', draft: { ...morningExample(), name: '', categories: [newCategory('', [newStep()])] } })}><Plus data-icon="inline-start" />New routine</Button>
@@ -133,8 +133,8 @@ export function RoutinesPage({ ready, readOnly, routines, categories, steps, run
         </div>
       ) : (
         <>
-          {scheduled.length > 0 && <section className="flex flex-col gap-3" aria-labelledby="today-routines"><h2 id="today-routines" className="text-title font-bold">Today</h2><div className="grid gap-3 md:grid-cols-2">{scheduled.map((r) => card(r, true))}</div></section>}
-          {others.length > 0 && <section className="flex flex-col gap-3" aria-labelledby="other-routines"><h2 id="other-routines" className="text-headline">{scheduled.length ? 'Other routines' : 'Your routines'}</h2><div className="grid gap-3 md:grid-cols-2">{others.map((r) => card(r, false))}</div></section>}
+          {scheduled.length > 0 && <section className="flex flex-col gap-3" aria-labelledby="today-routines"><h2 id="today-routines" className="text-title font-bold">Today</h2><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{scheduled.map((r) => card(r, true))}</div></section>}
+          {others.length > 0 && <section className="flex flex-col gap-3" aria-labelledby="other-routines"><h2 id="other-routines" className="text-headline">{scheduled.length ? 'Other routines' : 'Your routines'}</h2><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{others.map((r) => card(r, false))}</div></section>}
         </>
       )}
       {archived.length > 0 && (
@@ -190,7 +190,7 @@ function Runner({ run, routine, results, tasks, today, busy, error, onBack, act,
   };
 
   return (
-    <div className="flex w-full max-w-2xl flex-col gap-4 pb-28 md:pb-0">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 pb-28 md:pb-0">
       <div className="flex items-center justify-between gap-2">
         <BackLink onClick={onBack} />
         <div className="flex gap-1.5">
@@ -287,7 +287,7 @@ function Summary({ run, routine, results, tasks, busy, error, onBack, onUndo }: 
   const linked = p.flat.filter((x) => x.result?.habit_task_id);
   const total = p.categories.reduce((n, c) => n + c.elapsedMs, 0);
   return (
-    <div className="flex w-full max-w-2xl flex-col gap-4">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
       <BackLink onClick={onBack} />
       <section className="flex flex-col items-center gap-2 rounded-3xl bg-mint p-6 text-center text-mint-ink ring-1 ring-inset ring-mint-pop/30">
         <Sparkles className="size-8 text-butter-pop" aria-hidden="true" />
@@ -349,7 +349,7 @@ function Builder({ draft: initial, tasks, settings, today, busy, error, pushStat
   const showsCount = allSteps.filter((s) => stepShowsOn(s, preview)).length;
 
   return (
-    <div className="flex w-full max-w-3xl flex-col gap-5 pb-28 md:pb-6">
+    <div className="flex w-full flex-col gap-5 pb-28 md:pb-6">
       <BackLink onClick={onCancel} label="Cancel" />
       <Card><CardContent className="flex flex-col gap-4">
         <FormField label="Routine name"><Input value={d.name} maxLength={80} onChange={(e) => set({ name: e.target.value })} placeholder="Morning routine" /></FormField>

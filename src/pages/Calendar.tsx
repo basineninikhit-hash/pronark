@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, Info, Star } from 'lucide-react';
+import { MonthSwitcher } from '@/components/month-switcher';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
@@ -83,11 +84,7 @@ export function CalendarPage({ owner, tasks, settings, completions, kpis, kpiLog
           <NativeSelectOption value="">All activities</NativeSelectOption>
           {ownerTasks.map((t) => <NativeSelectOption key={t.id} value={t.id}>{t.title}</NativeSelectOption>)}
         </NativeSelect>
-        <div className="flex items-center gap-1 rounded-2xl bg-card p-1 ring-1 ring-foreground/10">
-          <Button variant="ghost" size="icon" className="rounded-xl" onClick={() => shift(-1)} aria-label="Previous month"><ChevronLeft /></Button>
-          <h2 className="tabular min-w-40 text-center text-sm font-semibold" aria-live="polite">{formatDate(cursor, { month: 'long', year: 'numeric' })}</h2>
-          <Button variant="ghost" size="icon" className="rounded-xl" onClick={() => shift(1)} aria-label="Next month"><ChevronRight /></Button>
-        </div>
+        <MonthSwitcher className="w-full sm:w-auto" label={formatDate(cursor, { month: 'long', year: 'numeric' })} onPrev={() => shift(-1)} onNext={() => shift(1)} />
       </div>
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_24rem]">

@@ -14,7 +14,7 @@ export function SettingsPage({ profile, today, busy, error, hasPartner, issued, 
   onEditGoals: () => void; onInvite: () => void; onCheckPush: () => void; onEnablePush: () => void; onStartOver: () => Promise<boolean>; report: ReactNode; children?: ReactNode;
 }) {
   return (
-    <div className="flex w-full max-w-3xl flex-col gap-5">
+    <div className="w-full columns-1 gap-5 lg:columns-2 [&>*]:mb-5 [&>*]:break-inside-avoid">
       {children}
       <Card>
         <CardContent className="flex flex-col gap-4">
