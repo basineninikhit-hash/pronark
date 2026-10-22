@@ -5,8 +5,8 @@ import { Switch } from '@/components/ui/switch';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AnimatedNumber, EmptyState, Meter } from '@/components/pronark';
-import { BarsDoodle, CoinsDoodle, HandNote, Sparkle, WalletDoodle } from '@/components/doodles';
-import { HabitBubble, PlayStat, Pop } from '@/components/playful';
+import { BarsDoodle, CoinsDoodle, Sparkle, WalletDoodle } from '@/components/doodles';
+import { HabitBubble, PlayStat } from '@/components/playful';
 import { cn } from '@/lib/utils';
 import { cents, periodLabels, settingFor, streakFor, type ActivityKpi, type ActivityKpiLog, type BonusProgress, type Completion, type Setting, type Task, type TaskPeriod } from '@/lib/domain';
 import { prefersReducedMotion, useSpring } from '@/lib/motion';
@@ -25,15 +25,14 @@ type HomeProps = {
 };
 
 export function HomePage(props: HomeProps) {
-  const { name, due, activities, orderedIds, periods, grouped, presentationReady, settings, completions, kpis, kpiLogs, today, busy, readOnly } = props;
+  const { due, activities, orderedIds, periods, grouped, presentationReady, settings, completions, kpis, kpiLogs, today, busy, readOnly } = props;
   const [manage, setManage] = useState(false);
   // Optimistic checkoffs: the row responds on tap; the server confirms (or we roll back) afterwards.
   const [pending, setPending] = useState<Record<string, boolean>>({});
   const saved = (t: Task) => completions.some((c) => c.task_id === t.id && c.local_date === today && c.completed);
   const isDone = (t: Task) => pending[t.id] ?? saved(t);
   const done = due.filter(isDone).length;
-  const first = name.split(' ')[0];
-  const streaks = activities.map((task) => ({ task, streak: streakFor(task.id, completions, settings, today) })).filter((x) => x.streak > 0).sort((a, b) => b.streak - a.streak);
+  const streaks = activities.map((task) => ({ task, streak: streakFor(task.id, completions, settings, today) })).filter((x) => x.streak > 0).sort((a, b) => b.streak - a.streak || a.task.title.localeCompare(b.task.title));
   const periodOf = (t: Task) => periods.find((p) => p.task_id === t.id)?.period ?? 'anytime';
 
   async function toggle(t: Task) {
@@ -46,10 +45,6 @@ export function HomePage(props: HomeProps) {
     return ok;
   }
 
-  const message = due.length && done === due.length ? 'Amazing work! Every win counts today.'
-    : !due.length ? `Rest day, ${first}. Recharge and come back tomorrow.`
-    : done === 0 ? `Ready when you are, ${first}! ${due.length} win${due.length === 1 ? '' : 's'} on the list today.`
-    : `Nice work, ${first}! ${done} of ${due.length} wins today.`;
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -64,7 +59,7 @@ export function HomePage(props: HomeProps) {
 
       {props.intro}
 
-      {/* Wide screens: habits on the left; companion, progress and streaks beside them. Phones: companion, habits, progress, streaks. */}
+      {/* Wide screens: habits on the left; a note, streaks and progress beside them. Phones: note, habits, streaks, progress. */}
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <section className="flex flex-col gap-3 rounded-3xl bg-card p-4 ring-1 ring-foreground/8 md:p-6 lg:col-start-1 lg:row-span-3 lg:row-start-1" aria-labelledby="checklist-title">
           <div className="flex items-start justify-between gap-2">
@@ -87,7 +82,7 @@ export function HomePage(props: HomeProps) {
           ) : <p className="text-xs text-muted-foreground">Checklist organization needs the new database update.</p>}
 
           {due.length ? (
-            <div className="flex flex-col gap-2">
+            <div className="scroll-area -mr-2 flex max-h-[65dvh] flex-col gap-2 overflow-y-auto pr-2 lg:max-h-[36rem]" tabIndex={0} role="region" aria-label="Today’s habits list">
               {due.map((t, i) => {
                 const period = periodOf(t);
                 const header = grouped && (i === 0 || periodOf(due[i - 1]) !== period);
@@ -106,35 +101,15 @@ export function HomePage(props: HomeProps) {
           ) : <EmptyState>Nothing scheduled today. Rest is part of the plan.</EmptyState>}
         </section>
 
-        {/* Companion with a handwritten speech bubble; first on phones, beside the list on wide screens. */}
-        <aside className="relative order-first flex items-center gap-4 overflow-hidden rounded-3xl bg-card p-4 ring-1 ring-foreground/8 lg:order-none lg:col-start-2 lg:row-start-1 lg:flex-col lg:p-5" aria-label="Today at a glance">
-          <Sparkle className="absolute top-3 right-3 hidden size-7 text-ink lg:block" />
-          <Pop tone="lavender" className="absolute bottom-16 left-2 hidden size-8 -scale-x-100 lg:block" />
-          <div className="flex min-w-0 flex-1 flex-col gap-3 lg:order-1 lg:w-full">
-            <p role="status" className="relative -rotate-1 rounded-3xl rounded-bl-md bg-background px-4 py-3 shadow-sm ring-1 ring-foreground/10 lg:mt-4 lg:mr-6 lg:rounded-bl-3xl lg:rounded-br-md">
-              <HandNote className="rotate-0 text-xl leading-6">{message}</HandNote>
-            </p>
-            <div className="lg:order-3">
-              <div className="mb-1 flex justify-between text-xs text-muted-foreground"><span>Today</span><span className="tabular">{done} of {due.length}</span></div>
-              <Meter value={done} max={Math.max(1, due.length)} className="h-2.5" label={`${done} of ${due.length} activities complete`} />
-            </div>
-          </div>
-        </aside>
+        <PostIt today={today} />
 
-      <section className="flex flex-col gap-3 rounded-3xl bg-card p-4 ring-1 ring-foreground/8 lg:col-start-2" aria-labelledby="progress-title">
-        <h2 id="progress-title" className="text-headline">Progress this week!</h2>
-        <div className="grid grid-cols-2 gap-2.5">
-          <div className="rounded-2xl bg-mint p-3 text-mint-ink"><p className="text-xs font-medium">Earned this week</p><p className="tabular mt-0.5 text-xl font-bold text-foreground">{cents(props.earnedWeek)}</p></div>
-          <div className="rounded-2xl bg-lavender p-3 text-lavender-ink"><p className="text-xs font-medium">Earned this month</p><p className="tabular mt-0.5 text-xl font-bold text-foreground">{cents(props.earnedMonth)}</p></div>
-        </div>
-      </section>
 
       <section className="flex flex-col gap-3 lg:col-start-2" aria-labelledby="streaks-title">
         <h2 id="streaks-title" className="text-title">Your streaks</h2>
         {props.balance <= 0 && <Alert variant="warning"><AlertDescription>Your activity streaks still count. Bonus progress is paused until your wallet is positive.</AlertDescription></Alert>}
         {!props.bonusProgressReady && <Alert variant="info"><AlertDescription>Bonus progress will appear after the Rewards database update.</AlertDescription></Alert>}
         {streaks.length ? (
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+          <div className="scroll-area -mr-1 grid max-h-[23rem] gap-2 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-1" tabIndex={0} role="region" aria-label="Your streaks, longest first">
             {streaks.map(({ task, streak }) => {
               const eligible = props.bonusProgress.find((p) => p.task_id === task.id)?.eligible_days ?? 0, milestone = eligible < 14 ? 14 : 28, remaining = Math.max(0, milestone - eligible);
               return (
@@ -155,6 +130,14 @@ export function HomePage(props: HomeProps) {
             })}
           </div>
         ) : <EmptyState icon={<Flame className="size-5" aria-hidden="true" />}>Complete a scheduled activity to start a streak. Your active streaks will appear here.</EmptyState>}
+      </section>
+
+      <section className="flex flex-col gap-3 rounded-3xl bg-card p-4 ring-1 ring-foreground/8 lg:col-start-2" aria-labelledby="progress-title">
+        <h2 id="progress-title" className="text-headline">Progress this week!</h2>
+        <div className="grid grid-cols-2 gap-2.5">
+          <div className="rounded-2xl bg-mint p-3 text-mint-ink"><p className="text-xs font-medium">Earned this week</p><p className="tabular mt-0.5 text-xl font-bold text-foreground">{cents(props.earnedWeek)}</p></div>
+          <div className="rounded-2xl bg-lavender p-3 text-lavender-ink"><p className="text-xs font-medium">Earned this month</p><p className="tabular mt-0.5 text-xl font-bold text-foreground">{cents(props.earnedMonth)}</p></div>
+        </div>
       </section>
       </div>
     </div>
@@ -216,3 +199,28 @@ function TaskRow({ task, completed, setting, kpi, logged, readOnly, busy, manage
   );
 }
 
+/** Encouraging notes; one per day, with a button for another. */
+const notes = [
+  'Small steps still move you forward.', 'You don’t have to be perfect. Just keep showing up.', 'Future you is already proud of today.',
+  'Progress, not perfection.', 'Every check-off is a vote for who you’re becoming.', 'Rest days count too. Be kind to yourself.',
+  'Start with the easiest one. Momentum does the rest.', 'You’ve done hard things before. This is one more.', 'Consistency beats intensity.',
+  'One good choice makes the next one easier.', 'Done is better than perfect.', 'Tiny habits, big life.',
+];
+
+function PostIt({ today }: { today: string }) {
+  const base = [...today].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
+  const [offset, setOffset] = useState(0);
+  const note = notes[(base + offset) % notes.length];
+  return (
+    <aside aria-label="Note for today" className="order-first px-3 pt-3 lg:order-none lg:col-start-2 lg:row-start-1 lg:px-3">
+      <div className="relative -rotate-1 rounded-sm rounded-br-3xl bg-butter lg:-rotate-2 px-5 pt-7 pb-4 shadow-[0_16px_30px_-16px_rgb(30_27_43/0.5)] ring-1 ring-butter-pop/40 transition-[rotate] duration-300 hover:rotate-0">
+        <span aria-hidden="true" className="absolute -top-3 left-1/2 h-6 w-20 -translate-x-1/2 rotate-3 rounded-sm bg-lavender/80 ring-1 ring-lavender-pop/30" />
+        <p className="text-eyebrow text-butter-ink">Note to self</p>
+        <p className="font-hand mt-1 text-2xl leading-snug text-foreground" aria-live="polite">{note}</p>
+        <button type="button" onClick={() => setOffset((o) => o + 1)} className="mt-2 ml-auto flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-butter-ink hover:bg-card/50">
+          <Sparkle className="size-4" />Another note
+        </button>
+      </div>
+    </aside>
+  );
+}

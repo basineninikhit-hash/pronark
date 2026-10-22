@@ -256,3 +256,9 @@
 .pronark-blobs::after { width: 40rem; height: 30rem; left: -18rem; bottom: -10rem; background: var(--blob-b); }
 .font-hand { font-family: "Caveat", "Bradley Hand", "Segoe Print", cursive; font-weight: 600; }
 
+/* Scrollable lists (Today’s habits, streaks, a calendar day): a slim, visible scrollbar. */
+.scroll-area { scrollbar-width: thin; scrollbar-color: color-mix(in oklch, var(--foreground) 22%, transparent) transparent; scrollbar-gutter: stable; }
+.scroll-area::-webkit-scrollbar { width: 8px; }
+.scroll-area::-webkit-scrollbar-thumb { border-radius: 999px; background: color-mix(in oklch, var(--foreground) 22%, transparent); }
+.scroll-area::-webkit-scrollbar-track { background: transparent; }
+.scroll-area:focus-visible { outline: 2px solid color-mix(in oklch, var(--ring) 60%, transparent); outline-offset: 4px; border-radius: 1rem; }

@@ -147,7 +147,7 @@ export function CalendarPage({ owner, tasks, settings, completions, kpis, kpiLog
             </div>
             {bestStreak && <p className="-mt-1 text-sm text-muted-foreground">🔥 <strong className="text-foreground">{bestStreak.task.title}</strong>: {bestStreak.streak} days in a row.</p>}
 
-            <ul className="flex flex-col divide-y divide-foreground/8">
+            <ul className="scroll-area -mr-2 flex max-h-[60dvh] flex-col divide-y divide-foreground/8 overflow-y-auto pr-2 lg:max-h-[30rem]" tabIndex={0} aria-label="Habits on this day">
               {ownerTasks.length ? ownerTasks.map((t) => {
                 const done = completedOn(t, selected), setting = settingFor(settings, t.id, selected), dueToday = isDue(t, setting, selected);
                 const kpi = kpis.find((k) => k.task_id === t.id), logged = kpiLogs.find((l) => l.task_id === t.id && l.local_date === selected);
