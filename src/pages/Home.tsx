@@ -1,5 +1,5 @@
-import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowDown, ArrowUp, Check, Flame, Info, Pencil, Plus } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { ArrowDown, ArrowUp, Check, ChevronDown, Clock, Flame, Info, Pencil, Play, Plus, Sunrise } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
@@ -12,6 +12,10 @@ import { cents, periodLabels, settingFor, streakFor, type ActivityKpi, type Acti
 import { prefersReducedMotion, useSpring } from '@/lib/motion';
 import { CheckoffToggle } from '@/components/checkoff-toggle';
 import type { CharacterStyle } from '@/components/companion-character';
+import { isoDay, roughLength, routinePeriod, routineToday, runProgress, stepEstimator, time12, type Routine, type RoutineCategory, type RoutineRun, type RoutineStep, type StepResult } from '@/lib/routines';
+
+/** The member's own routines, for showing today's alongside the habits. */
+export type HomeRoutines = { routines: Routine[]; categories: RoutineCategory[]; steps: RoutineStep[]; runs: RoutineRun[]; results: StepResult[] };
 
 type HomeProps = {
   character: CharacterStyle; name: string; due: Task[]; activities: Task[]; orderedIds: string[]; periods: TaskPeriod[]; grouped: boolean; presentationReady: boolean;
@@ -22,6 +26,8 @@ type HomeProps = {
   onAdd: () => void; onDetails: (task: Task) => void; onWallet: () => void;
   /** Shown under the greeting, e.g. the getting-started checklist. */
   intro?: ReactNode;
+  /** Today's routines appear in the checklist; omitted when viewing someone else. */
+  routines?: HomeRoutines; onOpenRoutine?: (routineId: string, start: boolean) => void;
 };
 
 export function HomePage(props: HomeProps) {
@@ -34,6 +40,18 @@ export function HomePage(props: HomeProps) {
   const done = due.filter(isDone).length;
   const streaks = activities.map((task) => ({ task, streak: streakFor(task.id, completions, settings, today) })).filter((x) => x.streak > 0).sort((a, b) => b.streak - a.streak || a.task.title.localeCompare(b.task.title));
   const periodOf = (t: Task) => periods.find((p) => p.task_id === t.id)?.period ?? 'anytime';
+  // Routines scheduled today (with steps today), earliest first.
+  const est = useMemo(() => stepEstimator(props.routines?.results ?? []), [props.routines?.results]);
+  const todaysRoutines = (props.routines?.routines ?? []).filter((r) => !r.archived_at && r.active_days.includes(isoDay(today)))
+    .map((r) => ({ routine: r, plan: routineToday(r, props.routines!.categories, props.routines!.steps, isoDay(today), est) })).filter((x) => x.plan.steps.length > 0)
+    .sort((a, b) => (a.routine.start_time ?? '99').localeCompare(b.routine.start_time ?? '99') || a.routine.name.localeCompare(b.routine.name));
+  const routineRow = ({ routine, plan }: (typeof todaysRoutines)[number]) => (
+    <RoutineRow key={routine.id} routine={routine} plan={plan} runs={props.routines!.runs} results={props.routines!.results} today={today} onOpen={(start) => props.onOpenRoutine?.(routine.id, start)} />
+  );
+  // When grouped, each time of day lists its routines first, then its habits.
+  const sections = grouped
+    ? (['morning', 'afternoon', 'evening', 'anytime'] as const).map((period) => ({ period, routines: todaysRoutines.filter((x) => routinePeriod(x.routine) === period), tasks: due.filter((t) => periodOf(t) === period) })).filter((x) => x.routines.length || x.tasks.length)
+    : [{ period: null, routines: todaysRoutines, tasks: due }];
 
   async function toggle(t: Task) {
     if (readOnly || t.id in pending) return false; // other rows can save at the same time
@@ -81,22 +99,22 @@ export function HomePage(props: HomeProps) {
             </label>
           ) : <p className="text-xs text-muted-foreground">Checklist organization needs the new database update.</p>}
 
-          {due.length ? (
+          {due.length || todaysRoutines.length ? (
             <div className="scroll-area -mr-2 flex max-h-[65dvh] flex-col gap-2 overflow-y-auto pr-2 lg:max-h-[36rem]" tabIndex={0} role="region" aria-label="Today’s habits list">
-              {due.map((t, i) => {
-                const period = periodOf(t);
-                const header = grouped && (i === 0 || periodOf(due[i - 1]) !== period);
-                return (
-                  <Fragment key={t.id}>
-                    {header && <h3 className="text-eyebrow px-2 pt-3 pb-1 text-muted-foreground">{periodLabels[period]}</h3>}
-                    <TaskRow task={t} completed={isDone(t)} setting={settingFor(settings, t.id, today)} kpi={kpis.find((k) => k.task_id === t.id)}
+              {sections.map((section) => (
+                <div key={section.period ?? 'all'} className="flex flex-col gap-2">
+                  {section.period && <h3 className="text-eyebrow px-2 pt-3 pb-1 text-muted-foreground">{periodLabels[section.period]}</h3>}
+                  {section.routines.map(routineRow)}
+                  {section.tasks.map((t) => (
+                    <TaskRow key={t.id} task={t} completed={isDone(t)} setting={settingFor(settings, t.id, today)} kpi={kpis.find((k) => k.task_id === t.id)}
                       logged={kpiLogs.find((k) => k.task_id === t.id && k.local_date === today)} readOnly={readOnly} busy={busy} manage={manage}
-                      period={period} presentationReady={presentationReady} canMoveUp={orderedIds.indexOf(t.id) > 0} canMoveDown={orderedIds.indexOf(t.id) < orderedIds.length - 1}
+                      period={periodOf(t)} presentationReady={presentationReady} canMoveUp={orderedIds.indexOf(t.id) > 0} canMoveDown={orderedIds.indexOf(t.id) < orderedIds.length - 1}
                       onToggle={() => toggle(t)} onLog={() => props.onLog(t, today)} onDetails={() => props.onDetails(t)}
                       onPeriod={(p) => props.onPeriod(t, p)} onMove={(d) => props.onMove(t, d)} />
-                  </Fragment>
-                );
-              })}
+                  ))}
+                </div>
+              ))}
+              {!due.length && <EmptyState>No habits scheduled today. Rest is part of the plan.</EmptyState>}
             </div>
           ) : <EmptyState>Nothing scheduled today. Rest is part of the plan.</EmptyState>}
         </section>
@@ -106,7 +124,7 @@ export function HomePage(props: HomeProps) {
 
       <section className="flex flex-col gap-3 lg:col-start-2" aria-labelledby="streaks-title">
         <h2 id="streaks-title" className="text-title">Your streaks</h2>
-        {props.balance <= 0 && <Alert variant="warning"><AlertDescription>Your activity streaks still count. Bonus progress is paused until your wallet is positive.</AlertDescription></Alert>}
+        {props.balance <= 0 && <Alert variant="warning"><AlertDescription>Your streaks still count. Bonus progress picks up again once your wallet is above zero.</AlertDescription></Alert>}
         {!props.bonusProgressReady && <Alert variant="info"><AlertDescription>Bonus progress will appear after the Rewards database update.</AlertDescription></Alert>}
         {streaks.length ? (
           <div className="scroll-area -mr-1 grid max-h-[23rem] gap-2 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-1" tabIndex={0} role="region" aria-label="Your streaks, longest first">
@@ -121,7 +139,7 @@ export function HomePage(props: HomeProps) {
                       <span className="tabular shrink-0 text-xs font-medium">{streak} day{streak === 1 ? '' : 's'}</span>
                     </div>
                     <p className="mb-1.5 truncate text-xs text-muted-foreground">
-                      {!props.bonusProgressReady ? 'Bonus counter unavailable' : eligible >= 28 ? '28 bonus-eligible days reached' : props.balance <= 0 ? `${eligible} bonus-eligible days · paused while wallet is not positive` : `${remaining} bonus-eligible day${remaining === 1 ? '' : 's'} to ${milestone}`}
+                      {!props.bonusProgressReady ? 'Bonus counter unavailable' : eligible >= 28 ? '28 bonus-eligible days reached' : props.balance <= 0 ? `${eligible} bonus-eligible days · resumes once your wallet is above zero` : `${remaining} bonus-eligible day${remaining === 1 ? '' : 's'} to ${milestone}`}
                     </p>
                     <Meter value={eligible} max={milestone} tone="warning" />
                   </div>
@@ -140,6 +158,47 @@ export function HomePage(props: HomeProps) {
         </div>
       </section>
       </div>
+    </div>
+  );
+}
+
+/** A routine in today's checklist: its length, its progress, and Start/Resume. Expands to show today's steps. */
+function RoutineRow({ routine, plan, runs, results, today, onOpen }: {
+  routine: Routine; plan: ReturnType<typeof routineToday>; runs: RoutineRun[]; results: StepResult[]; today: string; onOpen: (start: boolean) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const active = runs.find((r) => r.routine_id === routine.id && r.state === 'active');
+  const finished = runs.find((r) => r.routine_id === routine.id && r.start_date === today && r.state !== 'active');
+  const run = active ?? finished, progress = run ? runProgress(run, results) : null;
+  const rows = progress ? progress.flat.map((x) => ({ id: x.step.id, title: x.step.title, status: x.result?.status })) : plan.steps.map((s) => ({ id: s.id, title: s.title, status: undefined }));
+  return (
+    <div className={cn('rounded-2xl ring-1 ring-inset transition-colors duration-200', finished ? 'bg-mint/50 ring-transparent' : 'bg-lavender/60 ring-lavender-pop/25')}>
+      <div className="flex min-h-18 items-center gap-3 py-2.5 pr-1.5 pl-2.5">
+        <span className="grid size-11 shrink-0 place-items-center rounded-full bg-card/80 text-lavender-ink sm:size-12"><Sunrise className="size-5" aria-hidden="true" /></span>
+        <div className="min-w-0 flex-1">
+          <span className={cn('block text-[0.9375rem] font-semibold', finished && 'text-muted-foreground')}>{routine.name}</span>
+          <span className="tabular flex flex-wrap items-center gap-x-1 text-xs text-muted-foreground">
+            {plan.timed && <><Clock className="size-3" aria-hidden="true" />About {roughLength(plan.ms)} ·</>} {plan.steps.length} step{plan.steps.length === 1 ? '' : 's'}{routine.start_time ? ` · ${time12(routine.start_time.slice(0, 5))}` : ''}
+          </span>
+          {active && progress && <Meter value={progress.resolved} max={progress.total} className="mt-1.5 w-full sm:max-w-36" label={`${progress.resolved} of ${progress.total} steps`} />}
+        </div>
+        {finished ? <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary"><Check className="size-3.5" strokeWidth={3} aria-hidden="true" />{finished.state === 'finished' ? 'Done' : 'Ended'}</span>
+          : <Button size="sm" className="shrink-0" onClick={() => onOpen(!active)}><Play data-icon="inline-start" />{active ? 'Resume' : 'Start'}</Button>}
+        <Button variant="ghost" size="icon" className="shrink-0 rounded-full text-muted-foreground" aria-expanded={open} aria-label={`${open ? 'Hide' : 'Show'} steps in ${routine.name}`} onClick={() => setOpen(!open)}>
+          <ChevronDown className={cn('transition-transform', open && 'rotate-180')} />
+        </Button>
+      </div>
+      {open && (
+        <ol className="flex flex-col gap-1 border-t border-foreground/6 px-4 py-2.5 text-sm">
+          {rows.map((x) => (
+            <li key={x.id} className="flex items-center gap-2">
+              <span className={cn('grid size-4 shrink-0 place-items-center rounded-full', x.status === 'done' ? 'bg-primary text-primary-foreground' : 'ring-1 ring-foreground/20')} aria-hidden="true">{x.status === 'done' && <Check className="size-3" strokeWidth={3} />}</span>
+              <span className={cn(x.status === 'skipped' && 'text-muted-foreground line-through', x.status === 'done' && 'text-muted-foreground')}>{x.title}</span>
+              {x.status && <span className="sr-only">{x.status}</span>}
+            </li>
+          ))}
+        </ol>
+      )}
     </div>
   );
 }

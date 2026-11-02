@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, ChevronLeft, ChevronRight, Info, Star } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, HeartPulse, Info, Star } from 'lucide-react';
 import { MonthSwitcher } from '@/components/month-switcher';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,20 +8,21 @@ import { ActivityIcon } from '@/components/pronark';
 import { cn } from '@/lib/utils';
 import { cents, dayNumber, formatDate, isDue, monthStart, settingFor, streakFor, weekdays, type ActivityKpi, type ActivityKpiLog, type Completion, type Earning, type Setting, type Task } from '@/lib/domain';
 import { prefersReducedMotion, useSpring } from '@/lib/motion';
+import { amountText, confirmedFrom, type HealthSuggestion } from '@/lib/health';
 
 type DayState = 'completed' | 'partial' | 'missed' | 'rest' | 'future';
-// Cell colors from the calendar reference: green all done, yellow partly done, red none done, gray rest / not tracked.
+// Cell colors: green all done, yellow partly done, soft rose none done (no alarm red), gray rest / not tracked.
 const cellStyles: Record<DayState, string> = {
   completed: 'bg-mint text-mint-ink',
   partial: 'bg-warning/15 text-warning-foreground',
-  missed: 'bg-destructive/12 text-destructive',
+  missed: 'bg-rose text-rose-ink',
   rest: 'bg-muted text-muted-foreground',
   future: 'bg-card text-muted-foreground ring-1 ring-inset ring-foreground/6',
 };
 const legend: [DayState, string, string][] = [
   ['completed', 'Completed', 'All done'],
   ['partial', 'Partial', 'Some done'],
-  ['missed', 'Missed', 'None done'],
+  ['missed', 'Not this time', 'None done'],
   ['rest', 'Rest day', 'Not tracked'],
 ];
 // Sunday-first week, like a wall calendar.
@@ -35,8 +36,8 @@ const scheduleText = (days: number[] | undefined) => {
   return days.map((d) => weekdays[d - 1]).join(', ');
 };
 
-export function CalendarPage({ owner, tasks, settings, completions, kpis, kpiLogs, earnings, today, readOnly, busy, toggle, onLog }: {
-  owner: string; tasks: Task[]; settings: Setting[]; completions: Completion[]; kpis: ActivityKpi[]; kpiLogs: ActivityKpiLog[]; earnings: Earning[];
+export function CalendarPage({ owner, tasks, settings, completions, kpis, kpiLogs, earnings, today, readOnly, busy, toggle, onLog, healthSuggestions = [] }: {
+  owner: string; tasks: Task[]; settings: Setting[]; completions: Completion[]; kpis: ActivityKpi[]; kpiLogs: ActivityKpiLog[]; earnings: Earning[]; healthSuggestions?: HealthSuggestion[];
   today: string; readOnly: boolean; busy: boolean; toggle: (task: Task, date: string) => Promise<boolean>; onLog: (task: Task, date: string) => void;
 }) {
   const [cursor, setCursor] = useState(monthStart(today)), [selected, setSelected] = useState(today), [filter, setFilter] = useState(''), [correcting, setCorrecting] = useState(false);
@@ -75,7 +76,7 @@ export function CalendarPage({ owner, tasks, settings, completions, kpis, kpiLog
     : selected > today ? 'Coming up. Check back on the day.'
     : selectedDone === selectedDue.length ? `Great job! You completed all your habits ${isToday ? 'today' : 'that day'}.`
     : selectedDone > 0 ? `Nice progress. ${selectedDue.length - selectedDone} more ${isToday ? 'to go today' : 'were left that day'}.`
-    : isToday ? 'Nothing checked off yet. You’ve got this!' : 'No habits were checked off that day.';
+    : isToday ? 'Nothing checked off yet. You’ve got this!' : 'A quiet day. Every day is a fresh start.';
 
   return (
     <div className="flex flex-col gap-5">
@@ -138,7 +139,7 @@ export function CalendarPage({ owner, tasks, settings, completions, kpis, kpiLog
               </div>
             </div>
 
-            <div className={cn('flex items-center gap-4 rounded-2xl p-4', selectedState === 'completed' ? 'bg-mint text-mint-ink' : selectedState === 'partial' ? 'bg-warning/15 text-warning-foreground' : selectedState === 'missed' ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground')} role="status">
+            <div className={cn('flex items-center gap-4 rounded-2xl p-4', selectedState === 'completed' ? 'bg-mint text-mint-ink' : selectedState === 'partial' ? 'bg-warning/15 text-warning-foreground' : selectedState === 'missed' ? 'bg-rose text-rose-ink' : 'bg-muted text-muted-foreground')} role="status">
               <strong className="tabular shrink-0 text-4xl font-bold tracking-tight text-foreground">{selectedDue.length ? `${selectedDone}/${selectedDue.length}` : '—'}</strong>
               <div className="min-w-0">
                 <p className="text-base font-semibold text-foreground">{selectedDue.length ? 'habits completed' : 'Rest day'}</p>
@@ -152,12 +153,19 @@ export function CalendarPage({ owner, tasks, settings, completions, kpis, kpiLog
                 const done = completedOn(t, selected), setting = settingFor(settings, t.id, selected), dueToday = isDue(t, setting, selected);
                 const kpi = kpis.find((k) => k.task_id === t.id), logged = kpiLogs.find((l) => l.task_id === t.id && l.local_date === selected);
                 const editable = correcting && canCorrect && dueToday;
+                const fromHealth = done ? confirmedFrom(healthSuggestions, t.id, selected) : undefined;
                 return (
                   <li key={t.id} className={cn('flex items-center gap-3 py-3', !dueToday && 'opacity-55')}>
                     <span className="grid size-10 shrink-0 place-items-center"><ActivityIcon title={t.title} className="size-6 text-ink" /></span>
                     <div className="min-w-0 flex-1">
                       <strong className="block truncate text-sm font-semibold">{t.title}</strong>
                       <span className="text-xs text-muted-foreground">{scheduleText(setting?.weekdays)}</span>
+                      {fromHealth && (
+                        <span className="mt-1 flex items-center gap-1 text-xs text-rose-ink">
+                          <HeartPulse className="size-3.5 shrink-0 text-rose-pop" aria-hidden="true" />
+                          <span>From {fromHealth.source} · <span className="tabular">{amountText(fromHealth.kind, fromHealth.measured_value)}</span>{fromHealth.data_changed && <span className="text-muted-foreground"> · Health data changed later</span>}</span>
+                        </span>
+                      )}
                       {kpi && dueToday && (
                         <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                           <span className="tabular">{(logged?.value ?? 0).toLocaleString()} / {kpi.target.toLocaleString()} {kpi.unit}</span>

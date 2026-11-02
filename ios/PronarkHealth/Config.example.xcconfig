@@ -1,0 +1,11 @@
+// Copy to Config.xcconfig (ignored by git) and fill in your values.
+// Use the same Supabase project and public anon/publishable key as the web app's VITE_ values.
+// Never put a service-role key here: everything in an app bundle can be read.
+
+// Your Apple Developer team ID (Xcode → Settings → Accounts) and a bundle ID you own.
+PRONARK_TEAM_ID = ABCDE12345
+PRONARK_BUNDLE_ID = com.example.pronark.health
+
+// Host only, without https:// (xcconfig files treat // as a comment).
+PRONARK_SUPABASE_HOST = your-project-ref.supabase.co
+PRONARK_SUPABASE_ANON_KEY = your-public-anon-key

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 
 const db = new PGlite();
 await db.exec(`create role anon; create role authenticated; create role service_role; create schema auth; create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz); create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; create function digest(text,text) returns bytea language sql immutable as $$ select decode(md5($1),'hex') $$; create function gen_random_bytes(integer) returns bytea language sql volatile as $$ select decode(repeat('ab',$1),'hex') $$;`);
-for (const file of ['supabase/migrations/202609210001_foundation.sql','supabase/migrations/202609210002_rewards.sql','supabase/migrations/202609210003_rpc_permissions.sql','supabase/migrations/202609210004_atomic_setup.sql','supabase/migrations/202609220005_program_features.sql','supabase/migrations/202609220006_delivery_and_mirror.sql','supabase/migrations/202609220007_weekly_delivery_leases.sql','supabase/migrations/202609220008_sandbox_report_consent.sql','supabase/migrations/202609220009_invitation_pgcrypto_path.sql','supabase/migrations/202609220010_push_delivery_leases.sql','supabase/migrations/202609250011_goals_profile.sql','supabase/migrations/202609260012_rewards_overhaul.sql','supabase/migrations/202609260013_positive_balance_bonuses.sql','supabase/migrations/202610070014_activity_kpis.sql','supabase/migrations/202610080015_private_metrics.sql','supabase/migrations/202610080016_checklist_presentation.sql','supabase/migrations/202610080017_goal_target_growth.sql','supabase/migrations/202610080018_guided_onboarding.sql','supabase/migrations/202610100019_companion_reactions.sql','supabase/migrations/202610100020_custom_reminders.sql','supabase/migrations/202610100021_private_groups.sql','supabase/migrations/202610100022_together_garden.sql','supabase/migrations/202610200023_start_over.sql','supabase/migrations/202610210024_companion_character.sql','supabase/migrations/202610220025_guided_routines.sql','supabase/migrations/202610230026_group_games.sql','supabase/migrations/202610230027_wishlist.sql','supabase/migrations/202610230028_custom_categories.sql']) {
+for (const file of ['supabase/migrations/202609210001_foundation.sql','supabase/migrations/202609210002_rewards.sql','supabase/migrations/202609210003_rpc_permissions.sql','supabase/migrations/202609210004_atomic_setup.sql','supabase/migrations/202609220005_program_features.sql','supabase/migrations/202609220006_delivery_and_mirror.sql','supabase/migrations/202609220007_weekly_delivery_leases.sql','supabase/migrations/202609220008_sandbox_report_consent.sql','supabase/migrations/202609220009_invitation_pgcrypto_path.sql','supabase/migrations/202609220010_push_delivery_leases.sql','supabase/migrations/202609250011_goals_profile.sql','supabase/migrations/202609260012_rewards_overhaul.sql','supabase/migrations/202609260013_positive_balance_bonuses.sql','supabase/migrations/202610070014_activity_kpis.sql','supabase/migrations/202610080015_private_metrics.sql','supabase/migrations/202610080016_checklist_presentation.sql','supabase/migrations/202610080017_goal_target_growth.sql','supabase/migrations/202610080018_guided_onboarding.sql','supabase/migrations/202610100019_companion_reactions.sql','supabase/migrations/202610100020_custom_reminders.sql','supabase/migrations/202610100021_private_groups.sql','supabase/migrations/202610100022_together_garden.sql','supabase/migrations/202610200023_start_over.sql','supabase/migrations/202610210024_companion_character.sql','supabase/migrations/202610220025_guided_routines.sql','supabase/migrations/202610230026_group_games.sql','supabase/migrations/202610230027_wishlist.sql','supabase/migrations/202610230028_custom_categories.sql','supabase/migrations/202610290029_apple_health.sql','supabase/migrations/202611020030_routine_do_later.sql']) {
   try { await db.exec(readFileSync(file,'utf8').replace('create extension if not exists pgcrypto;','')); console.log(`PASS migration ${file}`); }
   catch (error) { console.error(`FAIL migration ${file}: ${error.message}`); process.exitCode=1; break; }
 }
@@ -499,8 +499,31 @@ if (!process.exitCode) {
  await as(a);
  await query('select archive_routine($1)',[routine]);
  assert.equal((await query('select count(*)::int n from routine_runs where routine_id=$1',[routine]))[0].n,1,'archiving keeps history');
+ // Do later: the current step moves to a "Saved for later" group at the end of this run only.
+ const routine3='bbbb0001-0000-4000-8000-000000000003', c3='bbbb0002-0000-4000-8000-000000000004', c4='bbbb0002-0000-4000-8000-000000000005';
+ const t=(n)=>`bbbb0003-0000-4000-8000-0000000000${20+n}`;
+ await query('select save_routine($1,$2,$3,$4,$5,$6::jsonb,$7)',[routine3,'Later test',[1,2,3,4,5,6,7],null,false,JSON.stringify([{id:c3,title:'One',steps:[{id:t(1),title:'A'},{id:t(2),title:'B'}]},{id:c4,title:'Two',steps:[{id:t(3),title:'C'}]}]),0]);
+ const run3=(await query('select start_routine_run($1) id',[routine3]))[0].id;
+ const order=async()=>(await query('select app.routine_step_ids(snapshot)::text[] ids from routine_runs where id=$1',[run3]))[0].ids;
+ await reject('select defer_routine_step($1,$2)',[run3,t(2)]); // not the current step
+ await query('select defer_routine_step($1,$2)',[run3,t(1)]);
+ assert.deepEqual(await order(),[t(2),t(3),t(1)]);
+ const snap=(await query('select snapshot from routine_runs where id=$1',[run3]))[0].snapshot;
+ assert.deepEqual(snap.map((c)=>c.title),['One','Two','Saved for later']);
+ assert.equal(snap.at(-1).later,true);
+ await query("select resolve_routine_step($1,$2,'done')",[run3,t(2)]);
+ await query('select defer_routine_step($1,$2)',[run3,t(3)]);
+ const snap2=(await query('select snapshot from routine_runs where id=$1',[run3]))[0].snapshot;
+ assert.deepEqual(snap2.map((c)=>c.title),['One','Saved for later'],'an emptied group is dropped and the later group is reused');
+ assert.deepEqual(await order(),[t(2),t(1),t(3)]);
+ await query("select resolve_routine_step($1,$2,'done')",[run3,t(1)]);
+ await reject('select defer_routine_step($1,$2)',[run3,t(3)]); // the last step left
+ assert.equal((await query('select count(*)::int n from routine_steps where routine_id=$1',[routine3]))[0].n,3,'the routine itself is unchanged');
+ await as(b); await reject('select defer_routine_step($1,$2)',[run3,t(3)]); await as(a);
+ await query("select resolve_routine_step($1,$2,'done')",[run3,t(3)]);
+ assert.equal((await query('select state from routine_runs where id=$1',[run3]))[0].state,'finished');
  await db.exec('reset role');
- console.log('PASS guided routines: builder rules, snapshot, one run per day, Done/Skip/Undo, single reward, owner-only, six-field Sheet summary');
+ console.log('PASS guided routines: builder rules, snapshot, one run per day, Done/Skip/Undo/Do later, single reward, owner-only, six-field Sheet summary');
  }
  // Start over: a owns `group` (with b) and belongs to `family` (owned by outsider).
  await db.exec('reset role');

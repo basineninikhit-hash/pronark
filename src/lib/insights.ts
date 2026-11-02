@@ -58,8 +58,8 @@ export function findInsights(records: Record_[], monthName: string): Insight[] {
       const on = rows.filter((r) => dayNumber(r.day) === wd), missed = on.filter((r) => !r.done).length;
       if (on.length >= 3 && missed >= 2 && missed / on.length >= 0.5) {
         const name = weekdayNames[wd - 1];
-        patterns.push({ id: `day-${task.id}-${wd}`, kind: 'pattern', task, headline: `${task.title} was incomplete on ${missed} of ${on.length} ${name}s.`, short: `${task.title} incomplete on ${missed} of ${on.length} ${name}s`,
-          detail: `A ${name} reminder may help.`, summary: `Incomplete on ${missed} of ${on.length} scheduled ${name}s in ${monthName}.`, link: 'Explore this pattern', days: on,
+        patterns.push({ id: `day-${task.id}-${wd}`, kind: 'pattern', task, headline: `${name}s were tougher for ${lower(task.title)}.`, short: `${name}s were tougher for ${lower(task.title)}`,
+          detail: `Done on ${on.length - missed} of ${on.length} ${name}s. A ${name} reminder may help.`, summary: `Done on ${on.length - missed} of ${on.length} scheduled ${name}s in ${monthName}.`, link: 'Explore this pattern', days: on,
           tip: { title: `Try a ${name} reminder`, body: 'A gentle reminder can help you stay on track for this routine.', weekday: name } });
       }
     }

@@ -1,7 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { GripVertical, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { CompanionCharacter, type CharacterHandle, type CharacterStyle } from '@/components/companion-character';
+import { CompanionCharacter, type CharacterHandle, type CharacterStyle, type CompanionProp } from '@/components/companion-character';
+
+/** What the companion holds up on each screen. */
+const sceneProps: Partial<Record<string, CompanionProp>> = { Home: 'checklist', Routines: 'timer', Calendar: 'calendar', Insights: 'chart', Goals: 'gift', Wallet: 'coin', Groups: 'heart' };
 import { VelocityTracker, prefersReducedMotion, project, rubberband, useSpring } from '@/lib/motion';
 
 type Dock = { side: 'left' | 'right'; y: number; minimized: boolean }; // y: 0 (top) … 1 (bottom) of the free space
@@ -123,7 +126,7 @@ export function FloatingCompanion({ style, line, scene, storageKey }: { style: C
           <p className="font-hand text-lg leading-5 text-ink">{text}</p>
         </div>
       )}
-      <CompanionCharacter ref={character} style={style} className="h-24 w-20 cursor-grab md:h-36 md:w-32" label="Your companion. Drag to move it, or tap to say hi." />
+      <CompanionCharacter ref={character} style={style} holding={sceneProps[scene]} className="h-24 w-20 cursor-grab md:h-36 md:w-32" label="Your companion. Drag to move it, or tap to say hi." />
       <div data-no-drag className={cn('absolute top-2 flex flex-col items-center gap-1', right ? '-left-2' : '-right-2')}>
         <button type="button" onClick={() => setDock({ ...dock, minimized: true })} aria-label="Minimize your companion"
           className="grid size-7 place-items-center rounded-full bg-card text-muted-foreground shadow ring-1 ring-foreground/15 transition-[scale] duration-100 hover:text-foreground active:scale-90 pointer-coarse:size-9"><Minus className="size-4" /></button>

@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
-import { AlarmClock, ArrowDown, ArrowLeft, ArrowUp, Bell, Check, ChevronDown, Clock, GripVertical, Link2, Pause, Pencil, Play, Plus, SkipForward, Sparkles, Sunrise, Timer, Trash2, TriangleAlert, Undo2 } from 'lucide-react';
+import { AlarmClock, ArrowDown, ArrowLeft, ArrowUp, Bell, Check, ChevronDown, Clock, Flag, GripVertical, Link2, ListEnd, Pause, Pencil, Play, Plus, SkipForward, Sparkles, Sunrise, Timer, Trash2, TriangleAlert, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -17,15 +17,15 @@ import { cn } from '@/lib/utils';
 import { formatDate, settingFor, weekdays, type Setting, type Task } from '@/lib/domain';
 import { errorText, rpc } from '@/lib/supabase';
 import {
-  clock, dayLabel, draftFrom, duration, isoDay, morningExample, newCategory, newStep, runProgress, startTimes, stepElapsedMs, stepShowsOn, time12, timeOfDay,
+  clock, dayLabel, draftFrom, duration, eastTime, isoDay, morningExample, newCategory, newStep, roughLength, routineToday, runProgress, startTimes, stepElapsedMs, stepEstimator, stepShowsOn, time12, timeOfDay,
   type Draft, type DraftCategory, type DraftStep, type Routine, type RoutineCategory, type RoutineRun, type RoutineStep, type StepResult,
 } from '@/lib/routines';
 
 type Screen = { name: 'list' } | { name: 'run'; runId: string } | { name: 'build'; draft: Draft } | { name: 'summary'; runId: string };
 
-export function RoutinesPage({ ready, readOnly, routines, categories, steps, runs, results, tasks, settings, today, initialRoutine, onRefresh, onEnablePush, pushStatus }: {
+export function RoutinesPage({ ready, readOnly, routines, categories, steps, runs, results, tasks, settings, today, initialRoutine, startOnOpen = false, onRefresh, onEnablePush, pushStatus }: {
   ready: boolean; readOnly: boolean; routines: Routine[]; categories: RoutineCategory[]; steps: RoutineStep[]; runs: RoutineRun[]; results: StepResult[];
-  tasks: Task[]; settings: Setting[]; today: string; initialRoutine?: string | null; onRefresh: () => Promise<void>; onEnablePush: () => Promise<void>; pushStatus: string;
+  tasks: Task[]; settings: Setting[]; today: string; initialRoutine?: string | null; startOnOpen?: boolean; onRefresh: () => Promise<void>; onEnablePush: () => Promise<void>; pushStatus: string;
 }) {
   const [screen, setScreen] = useState<Screen>({ name: 'list' });
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
@@ -35,17 +35,25 @@ export function RoutinesPage({ ready, readOnly, routines, categories, steps, run
   async function act<T>(name: string, args: Record<string, unknown>): Promise<{ ok: true; value: T } | { ok: false }> {
     setBusy(true); setError('');
     try { const value = await rpc<T>(name, args); await onRefresh(); return { ok: true, value }; }
-    catch (e) { setError(friendly(errorText(e))); return { ok: false }; }
+    catch (e) {
+      const message = errorText(e);
+      setError(name === 'defer_routine_step' && /schema cache|does not exist/i.test(message) ? 'Do later needs the latest database update (202611020030_routine_do_later.sql). Nothing was changed.' : friendly(message));
+      return { ok: false };
+    }
     finally { setBusy(false); }
   }
 
-  // A reminder link (?routine=…) opens straight into that routine's run if one is active.
+  // Typical step times from recent runs, for finish times and routine lengths.
+  const est = useMemo(() => stepEstimator(results), [results]);
+
+  // A reminder link (?routine=…) or Home's Resume opens straight into that routine's active run; Home's Start starts one.
   const opened = useRef(false);
   useEffect(() => {
-    if (opened.current || !initialRoutine || !ready) return;
+    if (opened.current || !initialRoutine || !ready || readOnly) return;
     opened.current = true;
     const run = runs.find((r) => r.routine_id === initialRoutine && r.state === 'active');
     if (run) go({ name: 'run', runId: run.id });
+    else if (startOnOpen && routines.some((r) => r.id === initialRoutine)) act<string>('start_routine_run', { p_routine: initialRoutine }).then((res) => { if (res.ok) go({ name: 'run', runId: res.value }); });
   }, [initialRoutine, ready, runs]);
 
   if (!ready) return <Alert variant="info"><AlertDescription>Routines need the latest database update (202610220025_guided_routines.sql) before they can be used.</AlertDescription></Alert>;
@@ -70,7 +78,7 @@ export function RoutinesPage({ ready, readOnly, routines, categories, steps, run
     if (!run || !routine) return <><BackLink onClick={() => go({ name: 'list' })} /><EmptyState>This run isn’t available anymore.</EmptyState></>;
     if (screen.name === 'summary' || run.state !== 'active') return <Summary run={run} routine={routine} results={results} tasks={tasks} busy={busy} error={error}
       onBack={() => go({ name: 'list' })} onUndo={run.state === 'finished' ? async () => { const r = await act('undo_routine_step', { p_run: run.id }); if (r.ok) go({ name: 'run', runId: run.id }); } : undefined} />;
-    return <Runner run={run} routine={routine} results={results} tasks={tasks} today={today} busy={busy} error={error} onBack={() => go({ name: 'list' })} act={act}
+    return <Runner run={run} routine={routine} results={results} est={est} tasks={tasks} today={today} busy={busy} error={error} onBack={() => go({ name: 'list' })} act={act}
       onFinished={() => go({ name: 'summary', runId: run.id })} />;
   }
 
@@ -78,11 +86,12 @@ export function RoutinesPage({ ready, readOnly, routines, categories, steps, run
   const active = routines.filter((r) => !r.archived_at), archived = routines.filter((r) => r.archived_at);
   const dow = isoDay(today);
   const scheduled = active.filter((r) => r.active_days.includes(dow)), others = active.filter((r) => !r.active_days.includes(dow));
-  const stepsToday = (r: Routine) => steps.filter((s) => s.routine_id === r.id && stepShowsOn(s, dow)).length;
   const card = (r: Routine, featured: boolean) => {
     const open = runs.find((x) => x.routine_id === r.id && x.state === 'active');
     const todays = runs.find((x) => x.routine_id === r.id && x.start_date === today && x.state !== 'active');
-    const count = stepsToday(r), offDay = !r.active_days.includes(dow);
+    const plan = routineToday(r, categories, steps, dow, est), count = plan.steps.length, offDay = !r.active_days.includes(dow);
+    // Gently note a late start (15+ minutes past the usual time) on a scheduled day that hasn't started yet.
+    const late = !offDay && !open && !todays && !!r.start_time && Date.now() > eastTime(today, r.start_time.slice(0, 5)) + 15 * 60_000;
     const p = open ? runProgress(open, results) : todays ? runProgress(todays, results) : null;
     return (
       <div key={r.id} className={cn('flex flex-col gap-4 rounded-3xl p-5 ring-1 ring-inset', featured ? 'bg-mint text-mint-ink ring-mint-pop/30' : 'bg-card ring-foreground/8')}>
@@ -90,7 +99,7 @@ export function RoutinesPage({ ready, readOnly, routines, categories, steps, run
           <span className={cn('grid size-12 shrink-0 place-items-center rounded-full', featured ? 'bg-card/80 text-ink' : 'bg-lavender text-lavender-ink')}><Sunrise className="size-6" aria-hidden="true" /></span>
           <div className="min-w-0 flex-1">
             <h3 className="text-lg font-semibold text-foreground">{r.name}</h3>
-            <p className="text-sm opacity-90">{dayLabel(r.active_days)}{r.start_time ? ` · ${time12(r.start_time.slice(0, 5))}` : ''}{r.reminder_enabled ? ' · reminder on' : ''}</p>
+            <p className="text-sm opacity-90">{count > 0 && plan.timed && <><span className="inline-flex items-center gap-1 font-semibold"><Clock className="size-3.5" aria-hidden="true" />About {roughLength(plan.ms)}</span> · </>}{dayLabel(r.active_days)}{r.start_time ? ` · ${time12(r.start_time.slice(0, 5))}` : ''}{r.reminder_enabled ? ' · reminder on' : ''}</p>
           </div>
           <Button variant="ghost" size="icon" className="rounded-full" aria-label={'Edit ' + r.name} onClick={() => go({ name: 'build', draft: draftFrom(r, categories, steps) })}><Pencil /></Button>
         </div>
@@ -107,6 +116,7 @@ export function RoutinesPage({ ready, readOnly, routines, categories, steps, run
         ) : (
           <div className="flex flex-col gap-2">
             {offDay && <p className="flex items-center gap-2 text-sm"><TriangleAlert className="size-4 shrink-0" aria-hidden="true" />Not scheduled today. You can still start it.</p>}
+            {late && count > 0 && <p className="text-sm">Later than your usual {time12(r.start_time!.slice(0, 5))} start. A shorter run still counts.</p>}
             {count ? <Button size="lg" className={cn('h-12 text-base', !featured && 'w-full sm:w-auto sm:self-start')} disabled={busy} onClick={() => start(r)}><Play data-icon="inline-start" />{offDay ? 'Start anyway' : 'Start'} · {count} step{count === 1 ? '' : 's'}</Button>
               : <p className="text-sm opacity-90">No steps are set for {weekdays[dow - 1]}. Edit the routine to add some.</p>}
           </div>
@@ -151,19 +161,19 @@ const BackLink = ({ onClick, label = 'Routines' }: { onClick: () => void; label?
 
 /* ---------- runner ---------- */
 
-function Runner({ run, routine, results, tasks, today, busy, error, onBack, act, onFinished }: {
-  run: RoutineRun; routine: Routine; results: StepResult[]; tasks: Task[]; today: string; busy: boolean; error: string; onBack: () => void;
+function Runner({ run, routine, results, est, tasks, today, busy, error, onBack, act, onFinished }: {
+  run: RoutineRun; routine: Routine; results: StepResult[]; est: ReturnType<typeof stepEstimator>; tasks: Task[]; today: string; busy: boolean; error: string; onBack: () => void;
   act: <T>(name: string, args: Record<string, unknown>) => Promise<{ ok: true; value: T } | { ok: false }>; onFinished: () => void;
 }) {
   const p = runProgress(run, results), cur = p.current;
   const [now, setNow] = useState(Date.now()), [showAll, setShowAll] = useState(false), [showCat, setShowCat] = useState(false), [pending, setPending] = useState<'done' | 'skipped' | null>(null);
-  const activeRef = useRef<HTMLDivElement>(null);
+  const activeRef = useRef<HTMLDivElement>(null), retry = useRef<(() => void) | null>(null);
   const timerMs = cur?.step.timer_seconds ? cur.step.timer_seconds * 1000 - stepElapsedMs(run, now) : null;
   // Timers are recalculated from saved timestamps, so time keeps counting while the app is closed.
+  // Timer steps tick fast; otherwise a slow tick keeps the finish time fresh.
   useEffect(() => {
-    if (!cur?.step.timer_seconds || run.paused_at) return;
     const tick = () => setNow(Date.now());
-    const id = window.setInterval(tick, 250);
+    const id = window.setInterval(tick, cur?.step.timer_seconds && !run.paused_at ? 250 : 15_000);
     document.addEventListener('visibilitychange', tick);
     return () => { window.clearInterval(id); document.removeEventListener('visibilitychange', tick); };
   }, [cur?.step.id, run.paused_at]);
@@ -174,7 +184,21 @@ function Runner({ run, routine, results, tasks, today, busy, error, onBack, act,
 
   const habit = cur.step.habit_task_id ? tasks.find((t) => t.id === cur.step.habit_task_id) : undefined;
   const catInfo = p.categories[cur.ci];
+  // What's next, and roughly when the whole run will be done.
+  const upcoming = p.flat.filter((x) => !x.result && x.step.id !== cur.step.id), next = upcoming[0];
+  const leftMs = Math.max(0, est.estimate(cur.step) - stepElapsedMs(run, now)) + upcoming.reduce((n, x) => n + est.estimate(x.step), 0);
+  const finishAt = new Date(now + leftMs).toISOString();
+  const timed = p.flat.some((x) => est.known(x.step));
+  // Compared with the plan: the start time plus the routine's usual length (today's runs only).
+  const plannedEnd = routine.start_time && run.start_date === today ? eastTime(today, routine.start_time.slice(0, 5)) + p.flat.reduce((n, x) => n + est.estimate(x.step), 0) : null;
+  const lateMin = plannedEnd === null ? null : Math.round((now + leftMs - plannedEnd) / 60000);
+  const deferStep = async () => {
+    retry.current = deferStep;
+    const r = await act('defer_routine_step', { p_run: run.id, p_step: cur.step.id });
+    if (r.ok) toast(`“${cur.step.title}” saved for later.`, { description: 'It’s waiting at the end of this run.' });
+  };
   const resolve = async (status: 'done' | 'skipped') => {
+    retry.current = () => resolve(status);
     setPending(status);
     const r = await act<string>('resolve_routine_step', { p_run: run.id, p_step: cur.step.id, p_status: status });
     setPending(null);
@@ -194,7 +218,7 @@ function Runner({ run, routine, results, tasks, today, busy, error, onBack, act,
       <div className="flex items-center justify-between gap-2">
         <BackLink onClick={onBack} />
         <div className="flex gap-1.5">
-          <Button variant="outline" disabled={busy} onClick={() => act('set_routine_run_paused', { p_run: run.id, p_paused: !run.paused_at })}>{run.paused_at ? <><Play data-icon="inline-start" />Resume</> : <><Pause data-icon="inline-start" />Pause</>}</Button>
+          <Button variant="outline" disabled={busy} onClick={() => { retry.current = null; act('set_routine_run_paused', { p_run: run.id, p_paused: !run.paused_at }); }}>{run.paused_at ? <><Play data-icon="inline-start" />Resume</> : <><Pause data-icon="inline-start" />Pause</>}</Button>
         </div>
       </div>
 
@@ -204,6 +228,15 @@ function Runner({ run, routine, results, tasks, today, busy, error, onBack, act,
         <div className="flex flex-wrap justify-between gap-x-4 gap-y-1 text-xs text-muted-foreground">
           <span>{p.done} done · {p.skipped} skipped</span><span>{p.categoriesDone} of {p.categories.length} categories complete</span>
         </div>
+        {timed && (
+          <div className="mt-1 flex flex-col gap-0.5 border-t border-foreground/6 pt-2 text-sm">
+            <p className="flex items-center gap-2"><Flag className="size-4 shrink-0 text-primary" aria-hidden="true" />
+              {run.paused_at ? <span>Paused. Your finish time moves while you rest.</span> : <span>Done by about <strong>{timeOfDay(finishAt)}</strong> · {roughLength(leftMs)} left</span>}</p>
+            {lateMin !== null && !run.paused_at && routine.start_time && (
+              <p className="pl-6 text-xs text-muted-foreground">{lateMin >= 5 ? `About ${roughLength(lateMin * 60000)} later than your ${time12(routine.start_time.slice(0, 5))} plan. Skip or save a step for later if you need to. The rest still counts.` : `On pace with your ${time12(routine.start_time.slice(0, 5))} plan.`}</p>
+            )}
+          </div>
+        )}
       </section>
 
       <section ref={activeRef} className="flex flex-col gap-4 rounded-3xl bg-mint p-5 text-mint-ink ring-1 ring-inset ring-mint-pop/30 md:p-6" aria-live="polite" aria-labelledby="active-step">
@@ -228,12 +261,16 @@ function Runner({ run, routine, results, tasks, today, busy, error, onBack, act,
             <span className="tabular text-3xl font-bold">{timeUp ? '0:00' : clock(timerMs)}</span>
           </div>
         )}
-        <ErrorText>{error && <>{error} <button type="button" className="font-semibold underline" onClick={() => resolve(pending ?? 'done')}>Retry</button></>}</ErrorText>
+        <ErrorText>{error && <>{error} {retry.current && <button type="button" className="font-semibold underline" onClick={() => retry.current?.()}>Retry</button>}</>}</ErrorText>
         <div className="sticky bottom-24 z-10 -mx-1 flex gap-2 md:static">
           <Button size="lg" className="h-14 flex-1 text-lg shadow-lg md:shadow-none" disabled={busy} onClick={() => resolve('done')}>{pending === 'done' ? 'Saving…' : <><Check data-icon="inline-start" />Done</>}</Button>
           <Button size="lg" variant="outline" className="h-14 bg-card px-6 text-base" disabled={busy} onClick={() => resolve('skipped')}>{pending === 'skipped' ? 'Saving…' : <><SkipForward data-icon="inline-start" />Skip</>}</Button>
         </div>
-        {p.lastResult && <Button variant="ghost" size="sm" className="self-start" disabled={busy} onClick={() => act('undo_routine_step', { p_run: run.id })}><Undo2 data-icon="inline-start" />Undo last ({p.lastResult.status === 'done' ? 'Done' : 'Skip'})</Button>}
+        {next && <p className="text-sm"><span className="opacity-80">Next:</span> <strong className="text-foreground">{next.step.title}</strong></p>}
+        <div className="flex flex-wrap gap-1">
+          {next && <Button variant="ghost" size="sm" disabled={busy} onClick={deferStep} title="Move this step to the end of today’s run"><ListEnd data-icon="inline-start" />Do later</Button>}
+          {p.lastResult && <Button variant="ghost" size="sm" disabled={busy} onClick={() => { retry.current = null; act('undo_routine_step', { p_run: run.id }); }}><Undo2 data-icon="inline-start" />Undo last ({p.lastResult.status === 'done' ? 'Done' : 'Skip'})</Button>}
+        </div>
       </section>
 
       <section className="rounded-3xl bg-card ring-1 ring-foreground/8">
@@ -255,7 +292,7 @@ function Runner({ run, routine, results, tasks, today, busy, error, onBack, act,
       </section>
       {(showAll || showCat) && <Button variant="secondary" className="self-center" onClick={() => activeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>Back to current step</Button>}
       <div className="flex flex-col items-start gap-1.5">
-        <TimedUndoButton size="sm" disabled={busy} label="End routine for today" undoLabel="Keep going" runningLabel="Ending…" onConfirm={async () => { const r = await act('end_routine_run', { p_run: run.id }); if (r.ok) onFinished(); }} />
+        <TimedUndoButton size="sm" disabled={busy} label="End routine for today" undoLabel="Keep going" runningLabel="Ending…" onConfirm={async () => { retry.current = null; const r = await act('end_routine_run', { p_run: run.id }); if (r.ok) onFinished(); }} />
         <p className="text-xs text-muted-foreground">Your Done and Skipped steps stay saved. {run.start_date !== today && 'This run started on ' + formatDate(run.start_date, { weekday: 'long' }) + '.'}</p>
       </div>
     </div>

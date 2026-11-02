@@ -18,6 +18,8 @@ import { INSIGHT_UNLOCK_DAYS, LEARNING_LINE, findInsights, monthRecords, trackin
 import { GoalsForm, KpiLogForm, TaskForm, TemplateForm } from '@/components/editors';
 import { useSlidingIndicator } from '@/components/sliding-indicator';
 import { OnboardingChecklist } from '@/components/onboarding-checklist';
+import { HealthSuggestions } from '@/components/health-suggestions';
+import { confirmMessage, pendingSuggestions, type ConfirmResult, type HealthSuggestion } from '@/lib/health';
 import { cn } from '@/lib/utils';
 import { setAppReducedMotion } from '@/lib/motion';
 import { errorText, rpc, supabase, vapidPublicKey } from '@/lib/supabase';
@@ -36,6 +38,7 @@ const LegacySetup = named(() => import('@/pages/LegacySetup'), 'LegacySetup');
 const MonthlyRecap = named(() => import('@/InsightsDashboard'), 'MonthlyRecap');
 const ReactionSettings = named(() => import('@/ReactionSettings'), 'ReactionSettings');
 const ReminderSettings = named(() => import('@/ReminderSettings'), 'ReminderSettings');
+const HealthSettings = named(() => import('@/HealthSettings'), 'HealthSettings');
 const GroupsPage = named(() => import('@/GroupsPage'), 'GroupsPage');
 const CalendarPage = named(() => import('@/pages/Calendar'), 'CalendarPage');
 const GoalsPage = named(() => import('@/pages/Goals'), 'GoalsPage');
@@ -74,7 +77,9 @@ export function App() {
   const [editor, setEditor] = useState<Task | null | undefined>(undefined), [details, setDetails] = useState<Task | null>(null), [templateTask, setTemplateTask] = useState<Task | null>(null), [goalsEditor, setGoalsEditor] = useState(false), [kpiEntry, setKpiEntry] = useState<{ task: Task; date: string } | null>(null);
   const [presentations, setPresentations] = useState<ChecklistPresentation[]>([]), [taskPeriods, setTaskPeriods] = useState<TaskPeriod[]>([]), [presentationReady, setPresentationReady] = useState(false);
   const [onboardingProgress, setOnboardingProgress] = useState<OnboardingRow | null>(null), [onboardingReady, setOnboardingReady] = useState(false), [experiencePrefs, setExperiencePrefs] = useState<ExperienceRow[]>([]);
+  const [routineIntent, setRoutineIntent] = useState<{ id: string; start: boolean } | null>(null);
   const [routineData, setRoutineData] = useState<{ ready: boolean; routines: Routine[]; categories: RoutineCategory[]; steps: RoutineStep[]; runs: RoutineRun[]; results: StepResult[] }>({ ready: false, routines: [], categories: [], steps: [], runs: [], results: [] });
+  const [healthSuggestions, setHealthSuggestions] = useState<HealthSuggestion[]>([]);
   const [tourOpen, setTourOpen] = useState(false), [guideHidden, setGuideHidden] = useState(false);
   const [invite, setInvite] = useState(''), [issued, setIssued] = useState(''), [pushStatus, setPushStatus] = useState('Not checked');
   const [recapMonth, setRecapMonth] = useState<string | null>(null), [celebration, setCelebration] = useState('');
@@ -148,6 +153,9 @@ export function App() {
     const runIds = ((rr.data ?? []) as RoutineRun[]).map((r) => r.id);
     const res = runIds.length ? await supabase.from('routine_step_results').select('*').in('run_id', runIds) : { data: [], error: null };
     setRoutineData({ ready: !rt.error && !rc.error && !rs.error && !rr.error && !res.error, routines: (rt.data ?? []) as Routine[], categories: (rc.data ?? []) as RoutineCategory[], steps: (rs.data ?? []) as RoutineStep[], runs: (rr.data ?? []) as RoutineRun[], results: (res.data ?? []) as StepResult[] });
+    // Apple Health suggestions are owner-only; a missing table just means no suggestions yet.
+    const health = await supabase.from('health_suggestions').select('*').eq('owner_id', session.user.id);
+    setHealthSuggestions(health.error ? [] : (health.data ?? []) as HealthSuggestion[]);
     setDataReady(true);
   }
   useEffect(() => {
@@ -167,7 +175,9 @@ export function App() {
   async function signIn() {
     if (!supabase) { setError('Sign-in is not configured yet. Please connect the app to Supabase to continue.'); return; }
     setError('');
-    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: new URL(import.meta.env.BASE_URL, location.origin).href } });
+    // prompt=select_account makes Google show its account picker every time, so a different
+    // Google account can be chosen instead of silently reusing the last one.
+    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: new URL(import.meta.env.BASE_URL, location.origin).href, queryParams: { prompt: 'select_account' } } });
     if (error) setError(error.message);
   }
   async function checkPush() {
@@ -242,7 +252,18 @@ export function App() {
     return true;
   }
 
-  const go = (view: View) => { setPage(view); window.scrollTo({ top: 0 }); };
+  async function confirmHealth(s: HealthSuggestion) {
+    let result: ConfirmResult | undefined;
+    const saved = await run(async () => { result = await rpc<ConfirmResult>('confirm_health_suggestion', { p_id: s.id }); }, '');
+    if (!saved || !result) return;
+    if (result.status === 'confirmed' && result.rewarded) { companionReact('cheer'); toast.success(confirmMessage(result)); }
+    else toast.info(confirmMessage(result));
+  }
+  const dismissHealth = (s: HealthSuggestion) => run(() => rpc('dismiss_health_suggestion', { p_id: s.id }), 'Suggestion dismissed. Nothing was checked off.');
+
+  const go = (view: View) => { setPage(view); setRoutineIntent(null); window.scrollTo({ top: 0 }); };
+  // Start/Resume from Home opens the routine's run on the Routines page.
+  const openRoutine = (id: string, start: boolean) => { go('Routines'); setRoutineIntent({ id, start }); };
 
   async function startOver() {
     const saved = await run(async () => {
@@ -349,10 +370,14 @@ export function App() {
             earnedToday={earnedOn(today, today)} earnedWeek={earnedOn(weekStart, today)} earnedMonth={earnedOn(month, today)} balance={balance}
             bonusProgress={bonusProgress.filter((p) => p.owner_id === owner)} bonusProgressReady={bonusProgressReady} busy={busy} readOnly={readOnly}
             onToggle={toggle} onLog={(task, date) => setKpiEntry({ task, date })} onAdd={() => setEditor(null)} onDetails={setDetails} onWallet={() => go('Wallet')}
-            intro={!readOnly && !guideHidden && <OnboardingChecklist steps={gettingStarted} onDismiss={hideGuide} />} />}
+            routines={readOnly ? undefined : routineData} onOpenRoutine={openRoutine}
+            intro={!readOnly && <>
+              {!guideHidden && <OnboardingChecklist steps={gettingStarted} onDismiss={hideGuide} />}
+              <HealthSuggestions suggestions={pendingSuggestions(healthSuggestions, own, today)} tasks={tasks.filter((t) => t.owner_id === own)} today={today} busy={busy} onConfirm={confirmHealth} onDismiss={dismissHealth} />
+            </>} />}
           {page === 'Routines' && <RoutinesPage {...routineData} readOnly={readOnly} tasks={tasks.filter((t) => t.owner_id === own)} settings={settings} today={today}
-            initialRoutine={new URLSearchParams(location.search).get('routine')} onRefresh={refresh} onEnablePush={enablePush} pushStatus={pushStatus} />}
-          {page === 'Calendar' && <CalendarPage owner={owner} tasks={tasks} settings={settings} completions={completions} kpis={ownerKpis} kpiLogs={ownerKpiLogs} earnings={ownerEarnings} today={today} readOnly={readOnly} busy={busy} toggle={toggle} onLog={(task, date) => setKpiEntry({ task, date })} />}
+            initialRoutine={routineIntent?.id ?? new URLSearchParams(location.search).get('routine')} startOnOpen={routineIntent?.start ?? false} onRefresh={refresh} onEnablePush={enablePush} pushStatus={pushStatus} />}
+          {page === 'Calendar' && <CalendarPage owner={owner} tasks={tasks} settings={settings} completions={completions} kpis={ownerKpis} kpiLogs={ownerKpiLogs} earnings={ownerEarnings} today={today} readOnly={readOnly} busy={busy} toggle={toggle} onLog={(task, date) => setKpiEntry({ task, date })} healthSuggestions={readOnly ? [] : healthSuggestions} />}
           {page === 'Insights' && (
             <InsightsHub client={supabase} owner={owner} today={today} tasks={tasks} settings={settings} completions={completions} earnings={ownerEarnings} kpis={activityKpis} kpiLogs={activityKpiLogs} readOnly={readOnly}
               onOpenRecap={() => { const d = new Date(today + 'T12:00:00Z'); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - 1); setRecapMonth(d.toISOString().slice(0, 7) + '-01'); }}
@@ -387,6 +412,7 @@ export function App() {
                 onSaveEmail={(email) => run(() => rpc('save_report_preference', { p_email: email, p_enabled: true }), 'Report preference saved. Only a verified address can receive email.')}
                 onToggleEmail={(enabled) => run(() => rpc('set_weekly_report_enabled', { p_enabled: enabled }), enabled ? 'Weekly email enabled.' : 'Weekly email disabled.')} />}>
               <ReminderSettings client={supabase} owner={own} tasks={tasks.filter((t) => t.owner_id === own)} />
+              <HealthSettings client={supabase} owner={own} tasks={tasks.filter((t) => t.owner_id === own)} stepGoal={ownProfile.step_goal ?? null} onChanged={refresh} />
             </SettingsPage>
           )}
           </Suspense>
@@ -395,7 +421,7 @@ export function App() {
       <TabBar page={page} onPage={go} />
       {!readOnly && <FloatingCompanion style={characterStyle} line={companionLine} scene={page} storageKey={'pronark-companion-dock:' + own} />}
 
-      <Sheet open={!!details} onClose={() => setDetails(null)} eyebrow="Routine details" title={details?.title} label="Activity details">
+      <Sheet open={!!details} onClose={() => setDetails(null)} eyebrow="Habit details" title={details?.title} label="Activity details">
         {details && (
           <div className="flex flex-col gap-3">
             <p className="whitespace-pre-wrap text-sm">{details.description || 'No description yet.'}</p>
@@ -403,13 +429,13 @@ export function App() {
             {!readOnly && (
               <SheetFooter>
                 <Button variant="outline" onClick={() => { setTemplateTask(details); setDetails(null); }}>Save as template</Button>
-                <Button onClick={() => { setEditor(details); setDetails(null); }}>Edit routine</Button>
+                <Button onClick={() => { setEditor(details); setDetails(null); }}>Edit habit</Button>
               </SheetFooter>
             )}
           </div>
         )}
       </Sheet>
-      <Sheet open={!!templateTask} onClose={() => setTemplateTask(null)} title="Save as template" description="This saves a reusable copy. Existing routines will never change from template edits.">
+      <Sheet open={!!templateTask} onClose={() => setTemplateTask(null)} title="Save as template" description="This saves a reusable copy. Existing habits will never change from template edits.">
         {templateTask && <TemplateForm task={templateTask} busy={busy} onClose={() => setTemplateTask(null)}
           onSave={(name) => run(() => rpc('save_template', { p_id: crypto.randomUUID(), p_name: name, p_title: templateTask.title, p_description: templateTask.description, p_weekdays: templateSetting?.weekdays ?? [1, 2, 3, 4, 5, 6, 7], p_reward: templateSetting?.reward_cents ?? 0 }), 'Template saved.')} />}
       </Sheet>

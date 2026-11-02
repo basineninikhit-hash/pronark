@@ -9,3 +9,9 @@ supabase/.temp/
 *.pem
 *.key
 .DS_Store
+
+# iPhone companion: local settings and the generated Xcode project
+ios/PronarkHealth/Config.xcconfig
+ios/PronarkHealth/*.xcodeproj/
+ios/**/xcuserdata/
+ios/**/DerivedData/

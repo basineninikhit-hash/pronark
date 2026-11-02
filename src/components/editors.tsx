@@ -23,7 +23,7 @@ export function TaskForm({ task, setting, kpi, kpiReady, today, busy, error, onC
   return (
     <Form>
       <FormField label="Title"><Input value={title} onChange={(e) => setTitle(e.target.value)} /></FormField>
-      <FormField label="Routine notes" hint={desc.length > 10000 ? <span className="text-destructive">Maximum 10,000 characters.</span> : undefined}>
+      <FormField label="Habit notes" hint={desc.length > 10000 ? <span className="text-destructive">Maximum 10,000 characters.</span> : undefined}>
         <Textarea rows={5} value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Steps, products, and notes" />
       </FormField>
       <FormField label="Reward ($)" hint={locked ? 'Reward and schedule changes reopen on the first calendar day next month.' : undefined}>

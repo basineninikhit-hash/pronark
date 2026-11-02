@@ -4,11 +4,11 @@ import { ArrowLeft, ArrowRight, BellRing, CalendarDays, Check, ChartColumn, Chev
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { MonthSwitcher } from '@/components/month-switcher';
-import { ActivityIcon, AnimatedNumber, Disclosure, EmptyState } from '@/components/pronark';
+import { ActivityIcon, AnimatedNumber, Disclosure, EmptyState, ProgressRing } from '@/components/pronark';
 import { CalendarCheckDoodle, GiftBoxDoodle, StarDoodle, TrophyDoodle } from '@/components/doodles';
 import { PlayStat, Pop, toneSurface, type Tone } from '@/components/playful';
 import { cn } from '@/lib/utils';
-import { cents, dayNumber, formatDate, monthStart, type ActivityKpi, type ActivityKpiLog, type Completion, type Earning, type Setting, type Task } from '@/lib/domain';
+import { cents, dayNumber, formatDate, isDue, monthStart, settingFor, streakFor, type ActivityKpi, type ActivityKpiLog, type Completion, type Earning, type Setting, type Task } from '@/lib/domain';
 import { prefersReducedMotion, useSpring } from '@/lib/motion';
 import { INSIGHT_UNLOCK_DAYS, addDays, findInsights, lower, monthRecords, short, trackingDays, weeklyTrend, type Insight, type Record_ } from '@/lib/insights';
 import { Meter } from '@/components/pronark';
@@ -68,6 +68,7 @@ export function InsightsHub({ client, owner, today, tasks, settings, completions
                 prevDisabled={months.indexOf(month) >= months.length - 1} nextDisabled={months.indexOf(month) <= 0}
                 onPrev={() => setMonth(months[Math.min(months.length - 1, months.indexOf(month) + 1)])} onNext={() => setMonth(months[Math.max(0, months.indexOf(month) - 1)])} />
             </div>
+            <WeekMomentum owner={owner} today={today} tasks={tasks} settings={settings} completions={completions} />
             <div className="grid gap-3 sm:grid-cols-3">
               <PlayStat layout="stack" tone="mint" icon={<CalendarCheckDoodle />} label="Checkoffs" value={<>{done} of {records.length}</>} hint={`scheduled checkoffs completed${month === currentMonth ? ' so far' : ''}.`} />
               <PlayStat layout="stack" tone="lavender" icon={<StarDoodle />} label="Consistency" value={records.length ? Math.round((done / records.length) * 100) + '%' : '—'} hint="of your scheduled habits completed." />
@@ -220,7 +221,7 @@ function DayTimeline({ days }: { days: Record_[] }) {
             {r.done ? <Check className="size-5" strokeWidth={3} aria-hidden="true" /> : <X className="size-5" aria-hidden="true" />}
           </span>
           <span className="text-sm font-medium">{short(r.day)}</span>
-          <span className="-mt-1 text-xs text-muted-foreground">{r.done ? 'Completed' : 'Incomplete'}</span>
+          <span className="-mt-1 text-xs text-muted-foreground">{r.done ? 'Done' : 'Not this time'}</span>
         </li>
       ))}
     </ol>
@@ -275,6 +276,83 @@ function HowCalculated() {
         <li>Patterns are things to check, not causes. You know your week best.</li>
       </ul>
     </Disclosure>
+  );
+}
+
+/**
+ * The week at a glance: one ring (checkoffs done out of everything scheduled Mon–Sun), three
+ * chips (best streak, strongest habit, a focus for the rest of the week) and the week's rhythm.
+ */
+function WeekMomentum({ owner, today, tasks, settings, completions }: { owner: string; today: string; tasks: Task[]; settings: Setting[]; completions: Completion[] }) {
+  const m = useMemo(() => {
+    const mine = tasks.filter((t) => t.owner_id === owner);
+    const doneOn = (id: string, day: string) => completions.some((c) => c.task_id === id && c.local_date === day && c.completed);
+    const start = addDays(today, -((dayNumber(today) + 6) % 7));
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const day = addDays(start, i), due = mine.filter((t) => isDue(t, settingFor(settings, t.id, day), day));
+      return { day, due: due.length, done: due.filter((t) => doneOn(t.id, day)).length, dueIds: due.map((t) => t.id) };
+    });
+    const total = days.reduce((n, d) => n + d.due, 0), done = days.reduce((n, d) => n + d.done, 0);
+    const best = mine.map((t) => ({ t, n: streakFor(t.id, completions, settings, today) })).sort((a, b) => b.n - a.n)[0];
+    // Completion rate over the last four weeks, for habits scheduled at least three times.
+    const rates = mine.map((t) => {
+      let due = 0, hit = 0;
+      for (let i = 0; i < 28; i++) { const day = addDays(today, -i); if (isDue(t, settingFor(settings, t.id, day), day)) { due++; if (doneOn(t.id, day)) hit++; } }
+      return { t, due, rate: due ? hit / due : 0 };
+    }).filter((x) => x.due >= 3);
+    const strongest = [...rates].sort((a, b) => b.rate - a.rate || b.due - a.due)[0];
+    // Focus: the habit with the most room to grow that still has a day left this week.
+    const ahead = new Set(days.filter((d) => d.day >= today).flatMap((d) => d.dueIds.filter((id) => !(d.day === today && doneOn(id, d.day)))));
+    const focus = [...rates].filter((x) => ahead.has(x.t.id) && x.t.id !== strongest?.t.id).sort((a, b) => a.rate - b.rate)[0];
+    return { days, total, done, best, strongest, focus };
+  }, [owner, today, tasks, settings, completions]);
+  const pct = m.total ? Math.round((m.done / m.total) * 100) : 0, max = Math.max(1, ...m.days.map((d) => d.due));
+  const chips: [string, string, string][] = [
+    ['Best streak', m.best?.n ? `${m.best.n} day${m.best.n === 1 ? '' : 's'}` : 'Starts today', m.best?.n ? m.best.t.title : 'One checkoff begins it'],
+    ['Strongest', m.strongest ? `${Math.round(m.strongest.rate * 100)}%` : '—', m.strongest ? m.strongest.t.title : 'Shows after a few days'],
+    ['Focus', m.focus ? m.focus.t.title : 'Keep it steady', m.focus ? 'Room to grow this week' : 'Nothing needs a nudge'],
+  ];
+  return (
+    <section className="flex flex-col gap-4 rounded-3xl bg-card p-4 ring-1 ring-foreground/8 md:p-6" aria-labelledby="momentum-title">
+      <div className="flex flex-wrap items-center gap-4 md:gap-6">
+        <ProgressRing value={m.total ? m.done / m.total : 0} size={104} stroke={10} label={`${pct}% of this week’s checkoffs done`}>
+          <span className="tabular text-2xl font-bold">{m.total ? `${pct}%` : '—'}</span>
+        </ProgressRing>
+        <div className="min-w-0 flex-1">
+          <h2 id="momentum-title" className="text-title text-2xl font-bold md:text-3xl">Week momentum</h2>
+          <p className="text-sm text-muted-foreground">{m.total ? `${m.done} of ${m.total} habit checkoffs done this week.` : 'Nothing is scheduled this week.'} A simple rhythm, not a scorecard.</p>
+        </div>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-3">
+        {chips.map(([label, value, hint]) => (
+          <div key={label} className="min-w-0 rounded-2xl bg-muted/50 px-3.5 py-2.5">
+            <p className="text-eyebrow text-muted-foreground">{label}</p>
+            <p className="truncate font-semibold text-foreground">{value}</p>
+            <p className="truncate text-xs text-muted-foreground">{hint}</p>
+          </div>
+        ))}
+      </div>
+      <div>
+        <h3 className="text-eyebrow mb-2 text-muted-foreground">Week rhythm</h3>
+        <ol className="flex h-20 items-end gap-2 sm:gap-3" aria-label="Checkoffs each day this week">
+          {m.days.map((d) => {
+            const future = d.day > today, name = formatDate(d.day, { weekday: 'short' });
+            const text = !d.due ? `${name}: rest day` : future ? `${name}: ${d.due} scheduled` : `${name}: ${d.done} of ${d.due} done`;
+            return (
+              <li key={d.day} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1" title={text}>
+                <span className="sr-only">{text}</span>
+                <div className="relative flex w-full max-w-10 flex-1 items-end overflow-hidden rounded-t-[4px]" aria-hidden="true">
+                  {d.due > 0 && <i className="absolute inset-x-0 bottom-0 rounded-t-[4px] bg-primary/12" style={{ height: `${(d.due / max) * 100}%` }} />}
+                  <i className="relative block w-full rounded-t-[4px] bg-primary transition-[height] duration-700 ease-out" style={{ height: `${(d.done / max) * 100}%` }} />
+                </div>
+                <span aria-hidden="true" className={cn('text-xs', d.day === today ? 'font-bold text-foreground' : 'text-muted-foreground')}>{name.slice(0, 1)}</span>
+              </li>
+            );
+          })}
+        </ol>
+        <p className="mt-2 text-xs text-muted-foreground">Solid is done; the pale part is what’s scheduled. Empty days are rest days.</p>
+      </div>
+    </section>
   );
 }
 

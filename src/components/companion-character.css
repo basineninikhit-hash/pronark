@@ -83,6 +83,10 @@
 @keyframes sleepy-eyes { 0%, 100% { transform: scaleY(.3); } 40%, 60% { transform: scaleY(.18); } }
 @keyframes drift-z { 0% { transform: translate(0, 8px); opacity: 0; } 30%, 60% { opacity: .9; } 100% { transform: translate(10px, -16px); opacity: 0; } }
 
+/* A screen prop pops into the paw when the screen changes. */
+.character-prop { transform-box: fill-box; transform-origin: 30% 90%; animation: prop-in .55s cubic-bezier(.3, 1.5, .5, 1); }
+@keyframes prop-in { from { transform: scale(.2) rotate(-24deg); opacity: 0; } }
+
 /* Reduced motion (OS setting or Pronark's "Reduce animations"): a still, friendly pose. */
 @media (prefers-reduced-motion: reduce) { .pronark-character * { animation: none !important; } }
 :root[data-reduced-motion="true"] .pronark-character * { animation: none !important; }

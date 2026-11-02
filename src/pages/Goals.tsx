@@ -93,7 +93,7 @@ export function GoalsPage({ client, owner, readOnly, balance, categories, wishes
   });
 
   const warnings = <>
-    {balance < 0 && <Alert variant="warning"><AlertDescription>Your in-app wallet is {cents(-balance)} below zero. Activity rewards repay this; streak bonuses pause until your balance is positive.</AlertDescription></Alert>}
+    {balance < 0 && <Alert variant="warning"><AlertDescription>Your in-app wallet is {cents(-balance)} under zero. That’s okay. Your next activity rewards fill it back up, and streak bonuses pick up again once it’s above zero.</AlertDescription></Alert>}
     {wallet.assigned > Math.max(0, balance) && <Alert variant="warning"><AlertDescription>Assigned dollars are {cents(wallet.assigned - Math.max(0, balance))} more than your wallet right now. New assignments pause until your balance catches up, or unassign some money.</AlertDescription></Alert>}
     {!itemAllocationReady && <Alert variant="info"><AlertDescription>Item savings need the Rewards database update. Category savings still show.</AlertDescription></Alert>}
   </>;
@@ -548,7 +548,7 @@ function GoalPurchaseForm({ item, today, balance, assigned, busy, onClose, onSav
       </FieldRow>
       <FormField label="Note (optional)"><Textarea value={note} onChange={(e) => setNote(e.target.value)} /></FormField>
       {early && <Alert variant="warning"><AlertDescription>This costs {cents(Math.max(0, amountCents - assigned))} more than you set aside for it. Set aside the full amount first. Pronark is about the satisfaction of saving toward a goal, not buying ahead.</AlertDescription></Alert>}
-      {negative && <Alert variant="warning"><AlertDescription>This would put your in-app wallet {cents(amountCents - balance)} below zero. Activity rewards would repay it; streak bonuses pause until the balance is positive. This is not real debt or a money transfer.</AlertDescription></Alert>}
+      {negative && <Alert variant="warning"><AlertDescription>Heads up: this would put your in-app wallet {cents(amountCents - balance)} under zero. It isn’t real debt or a money transfer. Your next activity rewards fill it back up, and streak bonuses wait until it’s above zero.</AlertDescription></Alert>}
       <SheetFooter>
         <Button variant="outline" onClick={onClose}>Cancel</Button>
         <Button disabled={busy || (early && !negative) || !title.trim() || !moneyPattern.test(amount) || Number(amount) <= 0 || date > today}

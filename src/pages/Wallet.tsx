@@ -44,7 +44,7 @@ export function WalletPage({ client, readOnly, today, earned, spent, balance, ea
         <Info className="size-5 shrink-0" aria-hidden="true" />Pronark tracks rewards you set aside; it does not move money.
       </p>
       {balance < 0 && (
-        <Alert variant="warning"><AlertDescription>Your in-app wallet is {cents(-balance)} below zero. Pronark is meant to reward waiting and saving—not buying ahead. Normal activity rewards first repay the shortfall, while streak bonuses pause until your balance is positive. This is not real debt.</AlertDescription></Alert>
+        <Alert variant="warning"><AlertDescription>Your in-app wallet is {cents(-balance)} under zero. That’s okay, and it isn’t real debt. Your next activity rewards fill it back up first, and streak bonuses pick up again once it’s above zero.</AlertDescription></Alert>
       )}
 
       <Card>
@@ -140,12 +140,12 @@ function PurchaseForm({ purchase, today, balance, busy, error, onClose, onSave, 
         <FormField label="Date"><Input type="date" max={today} value={date} onChange={(e) => setDate(e.target.value)} /></FormField>
       </FieldRow>
       <FormField label="Note (optional)"><Textarea value={note} onChange={(e) => setNote(e.target.value)} /></FormField>
-      {projected < 0 && <Alert variant="warning"><AlertDescription>This would put your in-app wallet {cents(-projected)} below zero. Pronark is designed for delayed gratification: the immediate win is seeing savings grow. Normal activity rewards repay a deficit; streak bonuses pause until your balance is positive.</AlertDescription></Alert>}
+      {projected < 0 && <Alert variant="warning"><AlertDescription>Heads up: this would put your in-app wallet {cents(-projected)} under zero. Saving first usually feels better. If you go ahead, your next activity rewards fill it back up, and streak bonuses wait until it’s above zero.</AlertDescription></Alert>}
       <ErrorText>{error}</ErrorText>
       {onDelete && <div className="flex flex-col items-start gap-1.5"><TimedUndoButton disabled={busy} label="Delete purchase" undoLabel="Keep purchase" runningLabel="Deleting…" onConfirm={onDelete} /><p className="text-xs text-muted-foreground">It’s removed from your spending, and the amount returns to your balance.</p></div>}
       <SheetFooter>
         <Button variant="outline" onClick={onClose}>Cancel</Button>
-        <Button disabled={busy || !valid} onClick={() => { if (projected < 0 && !confirm('Record this purchase despite the negative wallet warning?')) return; onSave(requestId, title, Math.round(Number(amount) * 100), date, note); }}>Save purchase</Button>
+        <Button disabled={busy || !valid} onClick={() => { if (projected < 0 && !confirm('This puts your wallet under zero. Record it anyway?')) return; onSave(requestId, title, Math.round(Number(amount) * 100), date, note); }}>Save purchase</Button>
       </SheetFooter>
     </Form>
   );

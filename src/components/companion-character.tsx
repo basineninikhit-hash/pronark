@@ -12,6 +12,55 @@ export const characterChoices = {
   outfit: [['none', 'None'], ['hoodie', 'Hoodie'], ['overalls', 'Overalls'], ['cape', 'Cape']],
 } as const;
 
+/** Something the companion holds up, matching the screen (a timer on Routines, a coin in Wallet…). */
+export type CompanionProp = 'checklist' | 'timer' | 'calendar' | 'chart' | 'gift' | 'coin' | 'heart';
+const propNames: Record<CompanionProp, string> = { checklist: 'a checklist', timer: 'a timer', calendar: 'a calendar', chart: 'a chart', gift: 'a gift', coin: 'a coin', heart: 'a heart' };
+
+/** The props, drawn in a 56×56 box. */
+function PropArt({ prop }: { prop: CompanionProp }) {
+  const card = { fill: '#fff', stroke: '#c9ccc2', strokeWidth: 2 };
+  switch (prop) {
+    case 'calendar': return <>
+      <rect x="2" y="6" width="52" height="48" rx="7" {...card} />
+      <path d="M2 13a7 7 0 0 1 7-7h38a7 7 0 0 1 7 7v7H2z" fill="#e8806f" />
+      <rect x="14" y="1" width="5" height="10" rx="2.5" fill="#5b6b61" /><rect x="37" y="1" width="5" height="10" rx="2.5" fill="#5b6b61" />
+      {[10, 23, 36].flatMap((x) => [26, 39].map((y) => <rect key={`${x}-${y}`} x={x} y={y} width="10" height="9" rx="2" fill={x === 36 && y === 39 ? '#6fbf8e' : '#e4e7df'} />))}
+      <path d="M38.5 43.5l2.5 2.5 4-4.5" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </>;
+    case 'timer': return <>
+      <rect x="23" y="1" width="10" height="7" rx="2" fill="#357a5c" /><rect x="26.5" y="7" width="3" height="4" fill="#357a5c" />
+      <circle cx="28" cy="33" r="21" fill="#fff" stroke="#357a5c" strokeWidth="4" />
+      <path d="M28 33V16a17 17 0 0 1 16 22z" fill="#bce7d1" />
+      <path d="M28 33V18" stroke="#202622" strokeWidth="3" strokeLinecap="round" /><circle cx="28" cy="33" r="3" fill="#202622" />
+    </>;
+    case 'chart': return <>
+      <rect x="2" y="4" width="52" height="48" rx="8" {...card} />
+      <rect x="11" y="30" width="8" height="14" rx="2" fill="#bce7d1" /><rect x="24" y="22" width="8" height="22" rx="2" fill="#78c39b" /><rect x="37" y="13" width="8" height="31" rx="2" fill="#357a5c" />
+      <path d="M8 45h40" stroke="#c9ccc2" strokeWidth="2" strokeLinecap="round" />
+    </>;
+    case 'gift': return <>
+      <rect x="4" y="22" width="48" height="32" rx="5" fill="#d9cdf5" stroke="#a891d9" strokeWidth="2" />
+      <rect x="1" y="14" width="54" height="11" rx="4" fill="#c3b0ee" stroke="#a891d9" strokeWidth="2" />
+      <rect x="24" y="14" width="8" height="40" fill="#e8806f" />
+      <path d="M28 14C18 2 8 8 18 14zM28 14C38 2 48 8 38 14z" fill="#e8806f" stroke="#c9604f" strokeWidth="1.5" />
+    </>;
+    case 'coin': return <>
+      <circle cx="28" cy="30" r="24" fill="#f4c65d" stroke="#c89631" strokeWidth="3" />
+      <circle cx="28" cy="30" r="17" fill="none" stroke="#e0ac3f" strokeWidth="2" />
+      <text x="28" y="39" textAnchor="middle" fontSize="24" fontWeight="800" fill="#9a6b17" fontFamily="inherit">$</text>
+    </>;
+    case 'checklist': return <>
+      <rect x="6" y="4" width="44" height="52" rx="6" {...card} />
+      <rect x="18" y="0" width="20" height="9" rx="3" fill="#78a894" />
+      {[18, 30, 42].map((y, i) => <g key={y}>
+        <circle cx="16" cy={y} r="4.5" fill={i < 2 ? '#6fbf8e' : '#fff'} stroke={i < 2 ? '#6fbf8e' : '#c9ccc2'} strokeWidth="1.5" />
+        <path d={`M24 ${y}h18`} stroke="#dcded5" strokeWidth="3" strokeLinecap="round" />
+      </g>)}
+    </>;
+    case 'heart': return <path d="M28 50C6 36 2 22 10 13c7-7 15-4 18 3 3-7 11-10 18-3 8 9 4 23-18 37z" fill="#f29fae" stroke="#d9788b" strokeWidth="2" />;
+  }
+}
+
 /** One-shot animations the character can play. */
 export type CharacterReaction = 'cheer' | 'shrug' | 'hello' | 'giggle' | 'celebrate' | 'stretch';
 const durations: Record<CharacterReaction, number> = { cheer: 1100, shrug: 950, hello: 1300, giggle: 800, celebrate: 2000, stretch: 1800 };
@@ -36,8 +85,10 @@ const timeOfDay = () => { const h = new Date().getHours(); return h >= 22 || h <
  * (`interactive`: squishes 1:1 like a soft toy on press, springs back, then waves or giggles),
  * and to the time of day (sleepy at night, a stretch on the first morning visit).
  */
-export function CompanionCharacter({ style, className, interactive = false, listen = true, entrance, ref, label }: {
+export function CompanionCharacter({ style, className, interactive = false, listen = true, entrance, ref, label, holding }: {
   style: CharacterStyle;
+  /** Hold up a prop in the right paw, like a timer on the Routines screen. */
+  holding?: CompanionProp | null;
   className?: string;
   interactive?: boolean;
   listen?: boolean;
@@ -90,7 +141,7 @@ export function CompanionCharacter({ style, className, interactive = false, list
     onPointerCancel: () => squish.to(0, { damping: 0.6, response: 0.35 }),
   } : {};
 
-  const description = label ?? `${style.color} companion with ${style.hat === 'none' ? 'no hat' : `a ${style.hat}`} and ${style.outfit === 'none' ? 'no outfit' : `a ${style.outfit}`}`;
+  const description = label ? (holding ? `${label} It’s holding ${propNames[holding]}.` : label) : `${holding ? `Holding ${propNames[holding]}. ` : ''}${style.color} companion with ${style.hat === 'none' ? 'no hat' : `a ${style.hat}`} and ${style.outfit === 'none' ? 'no outfit' : `a ${style.outfit}`}`;
   const svg = (
     <svg className={cn('pronark-character', period === 'night' && 'is-sleepy', reaction && `react-${reaction}`)} viewBox="0 0 280 330" role="img" aria-label={description}>
       <defs>
@@ -102,7 +153,11 @@ export function CompanionCharacter({ style, className, interactive = false, list
         <g className="character-leg character-leg-left"><rect x="94" y="251" width="43" height="55" rx="20" fill={`url(#${id}-body)`} stroke="#d5d6ce" /><ellipse cx="112" cy="299" rx="27" ry="12" fill={base} stroke="#d5d6ce" /></g>
         <g className="character-leg character-leg-right"><rect x="146" y="251" width="43" height="55" rx="20" fill={`url(#${id}-body)`} stroke="#d5d6ce" /><ellipse cx="169" cy="299" rx="27" ry="12" fill={base} stroke="#d5d6ce" /></g>
         <g className="character-arm character-arm-left"><ellipse cx="63" cy="192" rx="25" ry="69" transform="rotate(22 63 192)" fill={`url(#${id}-body)`} stroke="#d5d6ce" /><circle cx="66" cy="240" r="11" fill={base} stroke="#d5d6ce" /><circle cx="46" cy="257" r="26" fill={base} stroke="#d5d6ce" /></g>
-        <g className="character-arm character-arm-right"><ellipse cx="220" cy="192" rx="25" ry="69" transform="rotate(-22 220 192)" fill={`url(#${id}-body)`} stroke="#d5d6ce" /><circle cx="217" cy="240" r="11" fill={base} stroke="#d5d6ce" /><circle cx="237" cy="257" r="26" fill={base} stroke="#d5d6ce" /></g>
+        <g className="character-arm character-arm-right"><ellipse cx="220" cy="192" rx="25" ry="69" transform="rotate(-22 220 192)" fill={`url(#${id}-body)`} stroke="#d5d6ce" /><circle cx="217" cy="240" r="11" fill={base} stroke="#d5d6ce" /><circle cx="237" cy="257" r="26" fill={base} stroke="#d5d6ce" />
+          {/* The prop sits in the paw, with a thumb over its corner so it looks held. */}
+          {holding && <g transform="translate(206 196) rotate(-8 28 28)"><g key={holding} className="character-prop"><PropArt prop={holding} /></g></g>}
+          {holding && <ellipse cx="220" cy="250" rx="11" ry="9" fill={base} stroke="#d5d6ce" />}
+        </g>
         <path d="M106 117 Q141 102 175 117 Q207 138 215 230 Q212 273 184 279 Q141 290 99 279 Q69 269 67 230 Q72 139 106 117Z" fill={`url(#${id}-body)`} stroke="#d5d6ce" strokeWidth="1.5" />
         {style.outfit === 'hoodie' && <><path d="M95 125 Q142 150 188 125 Q213 161 212 232 Q207 262 184 275 Q143 285 99 275 Q73 259 70 231 Q74 160 95 125Z" fill="#78a894" /><path d="M111 126 Q141 151 172 126" fill="none" stroke="#4c806c" strokeWidth="6" /><path d="M113 222 Q142 234 174 222 L168 258 Q142 272 118 258Z" fill="#649782" /><path d="M136 154v28m11-28v28" stroke="#f8f5e9" strokeWidth="3" strokeLinecap="round" /></>}
         {style.outfit === 'overalls' && <><path d="M89 196 Q141 209 194 196 L193 262 Q172 285 141 282 Q107 283 88 261Z" fill="#789bc5" /><path d="M96 135 L121 136 L119 217 L98 218ZM163 136 L184 135 L186 218 L164 217Z" fill="#789bc5" /><path d="M120 220 Q141 231 163 220" fill="none" stroke="#5878a1" strokeWidth="3" /><circle cx="109" cy="209" r="4" fill="#f6cf77" /><circle cx="175" cy="209" r="4" fill="#f6cf77" /></>}

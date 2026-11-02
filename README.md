@@ -14,6 +14,10 @@ For isolated live tests, put the test project's public URL and publishable/anon 
 
 The local verification command is `npm test`; the production build check is `npm run build`. The test suite uses PGlite to exercise all migrations and transaction functions. Its pgcrypto functions are test shims; live Supabase still needs permission and integration checks.
 
+## Apple Health suggested check-ins
+
+Migration [202610290029_apple_health.sql](supabase/migrations/202610290029_apple_health.sql) adds owner-only Apple Health links, daily totals and suggestions. The iPhone companion in [ios/](ios/README.md) uploads daily step and workout totals; Pronark suggests a check-in when a linked activity's target is met, and only the member's confirmation creates a completion (through the same path as a manual check-off). Health tables have no group read access and are not mirrored to Google Sheets. `node tests/health-suggestions.mjs` covers creation, confirmation, dismissal, duplicate imports, changed data, permission changes and reward idempotency. The migration has not been applied to the live project, and the iPhone app has not been built or run yet; see [ios/README.md](ios/README.md) for the remaining setup.
+
 ## Activity KPI update
 
 The owner ran [202610070014_activity_kpis.sql](supabase/migrations/202610070014_activity_kpis.sql) in the current Supabase project's SQL Editor, and read-only API checks returned 200 for both new tables. It adds optional per-activity targets and daily measurements, protected by owner-only writes and partner-readable policies; changes enter the existing Sheets mirror queue. Users can set a target and unit when adding or editing an activity, then log numbers from Home or Calendar. Measurements do not automatically check off activities or award money; the existing checkoff remains explicit. The wallet's Record purchase button now opens a modal instead of an inline form.
