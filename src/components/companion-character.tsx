@@ -155,8 +155,8 @@ export function CompanionCharacter({ style, className, interactive = false, list
         <g className="character-arm character-arm-left"><ellipse cx="63" cy="192" rx="25" ry="69" transform="rotate(22 63 192)" fill={`url(#${id}-body)`} stroke="#d5d6ce" /><circle cx="66" cy="240" r="11" fill={base} stroke="#d5d6ce" /><circle cx="46" cy="257" r="26" fill={base} stroke="#d5d6ce" /></g>
         <g className="character-arm character-arm-right"><ellipse cx="220" cy="192" rx="25" ry="69" transform="rotate(-22 220 192)" fill={`url(#${id}-body)`} stroke="#d5d6ce" /><circle cx="217" cy="240" r="11" fill={base} stroke="#d5d6ce" /><circle cx="237" cy="257" r="26" fill={base} stroke="#d5d6ce" />
           {/* The prop sits in the paw, with a thumb over its corner so it looks held. */}
-          {holding && <g transform="translate(206 196) rotate(-8 28 28)"><g key={holding} className="character-prop"><PropArt prop={holding} /></g></g>}
-          {holding && <ellipse cx="220" cy="250" rx="11" ry="9" fill={base} stroke="#d5d6ce" />}
+          {holding && <g transform="translate(202 188) rotate(-8 32 32) scale(1.15)"><g key={holding} className="character-prop"><PropArt prop={holding} /></g></g>}
+          {holding && <ellipse cx="218" cy="252" rx="11" ry="9" fill={base} stroke="#d5d6ce" />}
         </g>
         <path d="M106 117 Q141 102 175 117 Q207 138 215 230 Q212 273 184 279 Q141 290 99 279 Q69 269 67 230 Q72 139 106 117Z" fill={`url(#${id}-body)`} stroke="#d5d6ce" strokeWidth="1.5" />
         {style.outfit === 'hoodie' && <><path d="M95 125 Q142 150 188 125 Q213 161 212 232 Q207 262 184 275 Q143 285 99 275 Q73 259 70 231 Q74 160 95 125Z" fill="#78a894" /><path d="M111 126 Q141 151 172 126" fill="none" stroke="#4c806c" strokeWidth="6" /><path d="M113 222 Q142 234 174 222 L168 258 Q142 272 118 258Z" fill="#649782" /><path d="M136 154v28m11-28v28" stroke="#f8f5e9" strokeWidth="3" strokeLinecap="round" /></>}
